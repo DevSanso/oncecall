@@ -1,0 +1,1 @@
+go build  -gcflags="all=-N -l" -o ./dist/bin/oncecall ./cmd/oncecall_query/main.go
