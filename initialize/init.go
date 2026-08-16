@@ -176,7 +176,11 @@ func setPerf() {
 func InitProc() (deferFn func(), err error) {
 	flag.Parse()
 	deferFn, err = setLogger()
+	if err != nil {
+		return
+	}
 	setPerf()
 	runtime.GOMAXPROCS(*cpu)
+	err = errlist.Init()
 	return
 }
