@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"net/url"
 	"oncecall/cfg"
+	"oncecall/define"
 	"oncecall/utils"
 	"strings"
 	"sync"
@@ -32,23 +32,13 @@ type sshClientPool struct {
 }
 
 func newSSHConnPool(info *cfg.ConnConfig) (ConnPoolInterface, error) {
-	_, sshUrlStr, err := getConnUrlAndDriver(info)
-	if err != nil {
-		return nil, err
+	if info.DBType != string(define.SSH) {
+		return nil, utils.ErrorfPc("not match db type: %s", info.DBType)
 	}
 
-	sshUrl, urlErr := url.Parse(sshUrlStr)
-	if urlErr != nil {
-		return nil, urlErr
-	}
-
-	if sshUrl.Scheme != "ssh" {
-		return nil, utils.ErrorfPc("not support schma ssh != %s", sshUrl.Scheme)
-	}
-
-	user := sshUrl.User.Username()
-	passwd, _ := sshUrl.User.Password()
-	ip := sshUrl.Host
+	user := info.Id
+	passwd := info.Password
+	ip := info.Server
 
 	if info.OptionMap == nil {
 		return nil, utils.ErrorfPc("not exists option string")
@@ -92,23 +82,23 @@ func newSSHConnPool(info *cfg.ConnConfig) (ConnPoolInterface, error) {
 	} else {
 		config.HostKeyCallback = ssh.InsecureIgnoreHostKey()
 	}
-	
+
 	var sh string = ""
 	if optionSh, exists := info.OptionMap["sh"]; exists {
 		var ok bool
 		sh, ok = optionSh.(string)
 		if !ok {
-			return nil,  utils.ErrorfPc("profileLoad not string")
+			return nil, utils.ErrorfPc("profileLoad not string")
 		}
 	}
 
 	return &sshClientPool{
-		address:    ip,
+		address:     ip,
 		config:      config,
 		splitChar:   info.OptionMap["split"].(string),
 		newlineChar: info.OptionMap["newline"].(string),
 		conf:        info,
-		sh :sh,
+		sh:          sh,
 	}, nil
 
 }

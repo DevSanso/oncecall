@@ -100,11 +100,11 @@ func setLogger() (deferFn func(), err error) {
 	}
 
 	deferFn = func() {
-		infoFile.Close()
-		debugFile.Close()
-		allFile.Close()
-		errorFile.Close()
-		zap.L().Sync()
+		_ = infoFile.Close()
+		_ = debugFile.Close()
+		_ = allFile.Close()
+		_ = errorFile.Close()
+		_ = zap.L().Sync()
 	}
 	err = nil
 

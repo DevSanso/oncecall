@@ -33,7 +33,6 @@ var urlArgsFn map[define.DBType]func(*cfg.ConnConfig) []any = map[define.DBType]
 	define.SQLITE:   func(c *cfg.ConnConfig) []any { return []any{c.Name} },
 	define.MYSQL:    func(c *cfg.ConnConfig) []any { return []any{c.Id, c.Password, c.Server, c.Name} },
 	define.REDIS:    func(c *cfg.ConnConfig) []any { return []any{c.Id, c.Password, c.Server, c.Name} },
-	define.SSH:      func(c *cfg.ConnConfig) []any { return []any{c.Id, c.Password, c.Server} },
 }
 
 func getConnUrlAndDriver(info *cfg.ConnConfig) (driver string, url string, e error) {
@@ -49,4 +48,9 @@ func getConnUrlAndDriver(info *cfg.ConnConfig) (driver string, url string, e err
 	}
 
 	return mapping.Driver, fmt.Sprintf(mapping.Url, argsFn(info)...), nil
+}
+
+func getConnUrl(info *cfg.ConnConfig) (url string, e error) {
+	_, url, e = getConnUrlAndDriver(info)
+	return
 }

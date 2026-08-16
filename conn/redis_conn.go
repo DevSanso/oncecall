@@ -31,7 +31,7 @@ func newRedisConnPool(info *cfg.ConnConfig) (ConnPoolInterface, error) {
 		return nil, utils.ErrorfPc("NewRedisConnPool[name:%s] - %s", info.Name, convertErr.Error())
 	}
 
-	_, url, err := getConnUrlAndDriver(info)
+	url, err := getConnUrl(info)
 	if err != nil {
 		return nil, utils.ErrorfPc("%s", err)
 	}
