@@ -1,5 +1,7 @@
 package utils
 
+import "oncecall/errlist"
+
 func ConvertMapDataBind(m map[string]any, bindKey []string) ([]any, error) {
 	if bindKey == nil && len(bindKey) <= 0 {
 		return nil, nil
@@ -8,7 +10,7 @@ func ConvertMapDataBind(m map[string]any, bindKey []string) ([]any, error) {
 	buffer := make([]any, len(bindKey))
 	for idx, k := range bindKey {
 		if val, exists := m[k]; !exists {
-			return nil, ErrorfPc("not suuport key %s", bindKey)
+			return nil, errlist.ErrG.NewError(nil, "not support key %s", bindKey)
 		} else {
 			buffer[idx] = val
 		}

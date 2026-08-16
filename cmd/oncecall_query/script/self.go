@@ -5,6 +5,7 @@ import (
 	"oncecall/cmd/oncecall_query/cfg"
 	"oncecall/conn"
 	"oncecall/define"
+	"oncecall/errlist"
 	"oncecall/utils"
 	"oncecall/utils/generic"
 	"oncecall/vm"
@@ -40,7 +41,7 @@ func (s *SelfScript) nextSleep(id int, conf *cfg.ScriptSelfConfig) error {
 func (s *SelfScript) isTrigger(id int, p conn.ConnPoolInterface, m map[string]any, conf *cfg.ScriptSelfConfig) (bool, error) {
 	bindData, bindDataErr := utils.ConvertMapDataBind(m, conf.GetTrigger.DynamicBind)
 	if bindDataErr != nil {
-		return false, utils.ErrorfPc("failed trigger [id:%d][msg:%s]", id, bindDataErr.Error())
+		return false, errlist.ErrG.NewError(nil, "failed trigger [id:%d][msg:%s]", id, bindDataErr.Error())
 	}
 
 	var data [][]any = nil
@@ -101,7 +102,7 @@ func (s *SelfScript) Run(conf *cfg.ScriptSelfConfig, id int, jobCache *generic.G
 	p, getPoolOk = pMap.Load(generic.Pair[int, bool]{First: id, Second: false})
 
 	if !getPoolOk {
-		return utils.ErrorfPc("get failed conn pool [%d", id)
+		return errlist.ErrG.NewError(nil, "get failed conn pool [%d", id)
 	}
 	connConfig := p.GetConfig()
 
@@ -132,7 +133,7 @@ func (s *SelfScript) Run(conf *cfg.ScriptSelfConfig, id int, jobCache *generic.G
 		if scriptData == nil && len(scriptData) <= 0 {
 			zap.L().Debug("script.self.vm", zap.String("name", conf.Name), zap.String("msg", "script data is none"))
 		}
-		
+
 		realData = scriptData
 		vmP.Put(vm)
 	}
@@ -140,7 +141,7 @@ func (s *SelfScript) Run(conf *cfg.ScriptSelfConfig, id int, jobCache *generic.G
 	if conf.Set.RealTime != nil && realData != nil {
 		storeP, ok := pMap.Load(generic.Pair[int, bool]{First: define.ConnMapRealTimeIdx, Second: false})
 		if !ok {
-			return utils.ErrorfPc("not find realtime db pool")
+			return errlist.ErrG.NewError(nil, "not find realtime db pool")
 		}
 		zap.L().Debug("script.self.realtime", zap.String("name", conf.Name), zap.Any("data", realData))
 		execErr := storeP.RunExecute(context.Background(), &conn.Args{
@@ -156,7 +157,7 @@ func (s *SelfScript) Run(conf *cfg.ScriptSelfConfig, id int, jobCache *generic.G
 	if conf.Set.Collect != nil && realData != nil {
 		storeP, ok := pMap.Load(generic.Pair[int, bool]{First: define.ConnMapCollectIdx, Second: false})
 		if !ok {
-			return utils.ErrorfPc("not find collect db pool")
+			return errlist.ErrG.NewError(nil, "not find collect db pool")
 		}
 		zap.L().Debug("script.self.collect", zap.String("name", conf.Name), zap.Any("data", realData))
 		execErr := storeP.RunExecute(context.Background(), &conn.Args{

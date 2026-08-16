@@ -8,7 +8,7 @@ import (
 	gcfg "oncecall/cfg"
 	"oncecall/cmd/oncecall_query/cfg"
 	"oncecall/cmd/oncecall_query/executor"
-	"oncecall/utils"
+	"oncecall/errlist"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -31,21 +31,17 @@ func getConfig() (app *gcfg.Config, manageConf *cfg.ProcessConfig, self []cfg.Sc
 	appConf, appConfErr := gcfg.GetConfigFromToml(appConfFile)
 	if appConfErr != nil {
 		return nil, nil, nil, appConfErr
-	} else {
-		app = appConf
 	}
-
+	app = appConf
 	procConfFile := filepath.Join(*cfgDir, "oncecall.query.toml")
 	queryConf, queryConfErr := cfg.GetManageConfFromToml(procConfFile)
 	if queryConfErr != nil {
 		return nil, nil, nil, queryConfErr
-	} else {
-		manageConf = queryConf
 	}
-
+	manageConf = queryConf
 	entry, readDirErr := os.ReadDir(*jobDirPath)
 	if readDirErr != nil {
-		return nil, nil, nil, utils.ErrorfPc("%s", readDirErr.Error())
+		return nil, nil, nil, errlist.ErrG.NewError(readDirErr, "%s", readDirErr.Error())
 	}
 
 	self = make([]cfg.ScriptSelfConfig, 0, 5)

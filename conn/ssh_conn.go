@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"oncecall/cfg"
 	"oncecall/define"
-	"oncecall/utils"
+	"oncecall/errlist"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -33,7 +33,7 @@ type sshClientPool struct {
 
 func newSSHConnPool(info *cfg.ConnConfig) (ConnPoolInterface, error) {
 	if info.DBType != string(define.SSH) {
-		return nil, utils.ErrorfPc("not match db type: %s", info.DBType)
+		return nil, errlist.ErrG.NewError(nil, "not match db type: %s", info.DBType)
 	}
 
 	user := info.Id
@@ -41,15 +41,15 @@ func newSSHConnPool(info *cfg.ConnConfig) (ConnPoolInterface, error) {
 	ip := info.Server
 
 	if info.OptionMap == nil {
-		return nil, utils.ErrorfPc("not exists option string")
+		return nil, errlist.ErrG.NewError(nil, "not exists option string")
 	}
 
 	if _, exists := info.OptionMap["split"]; !exists {
-		return nil, utils.ErrorfPc("not exists split option string")
+		return nil, errlist.ErrG.NewError(nil, "not exists split option string")
 	}
 
 	if _, exists := info.OptionMap["split"]; !exists {
-		return nil, utils.ErrorfPc("not exists newline option string")
+		return nil, errlist.ErrG.NewError(nil, "not exists newline option string")
 	}
 
 	config := &ssh.ClientConfig{
@@ -64,17 +64,17 @@ func newSSHConnPool(info *cfg.ConnConfig) (ConnPoolInterface, error) {
 		case "publickey":
 			keyData, keyExists := info.OptionMap["publickey"]
 			if !keyExists {
-				return nil, utils.ErrorfPc("not exists publickey, publickey hostkey")
+				return nil, errlist.ErrG.NewError(nil, "not exists publickey, publickey hostkey")
 			}
 
 			if convertKey, convertOk := keyData.([]byte); convertOk {
 				hostkey, _, _, _, authErr := ssh.ParseAuthorizedKey(convertKey)
 				if authErr != nil {
-					return nil, utils.ErrorfPc("%s", authErr.Error())
+					return nil, errlist.ErrG.NewError(authErr, "parse hostkey failed")
 				}
 				config.HostKeyCallback = ssh.FixedHostKey(hostkey)
 			} else {
-				return nil, utils.ErrorfPc("publickey data can't parsing bytes")
+				return nil, errlist.ErrG.NewError(nil, "convert bytes failed hostkey")
 			}
 		default:
 			config.HostKeyCallback = ssh.InsecureIgnoreHostKey()
@@ -88,7 +88,7 @@ func newSSHConnPool(info *cfg.ConnConfig) (ConnPoolInterface, error) {
 		var ok bool
 		sh, ok = optionSh.(string)
 		if !ok {
-			return nil, utils.ErrorfPc("profileLoad not string")
+			return nil, errlist.ErrG.NewError(nil, "profileLoad not string")
 		}
 	}
 
@@ -121,7 +121,7 @@ func (s *sshClientPool) getSession() (sess *ssh.Session, err error) {
 
 func (s *sshClientPool) RunExecute(ctx context.Context, arg *Args) error {
 	if s.isCloseFlag.Load() {
-		return utils.ErrorfPc("already close ssh conn")
+		return errlist.ErrG.NewError(nil, "already close ssh conn")
 	}
 
 	if sess, err := s.getSession(); err != nil {
@@ -216,7 +216,7 @@ func (s *sshClientPool) splitLineKeepQuote(line string, sep string) []string {
 
 func (s *sshClientPool) RunQuery(ctx context.Context, arg *Args) ([][]any, error) {
 	if s.isCloseFlag.Load() {
-		return nil, utils.ErrorfPc("already close ssh conn")
+		return nil, errlist.ErrG.NewError(nil, "already close ssh conn")
 	}
 
 	if sess, err := s.getSession(); err != nil {
@@ -242,11 +242,11 @@ func (s *sshClientPool) RunQuery(ctx context.Context, arg *Args) ([][]any, error
 
 		if err != nil {
 			if errB.Len() > 0 {
-				return nil, utils.ErrorfPc("errmsg:%s, ssh err:%s", errB.String(), err.Error())
+				return nil, errlist.ErrG.NewError(err, "cmd err:%s", errB.String())
 			}
-			return nil, utils.ErrorfPc("ssh err:%s", err.Error())
+			return nil, errlist.ErrG.NewError(err, "ssh err")
 		} else if errB.Len() > 0 {
-			return nil, utils.ErrorfPc("errmsg%s", errB.String())
+			return nil, errlist.ErrG.NewError(nil, "cmd err:%s", errB.String())
 		}
 
 		lines := s.splitLineKeepQuote(b.String(), s.newlineChar)
@@ -282,7 +282,7 @@ func (s *sshClientPool) RunQuery(ctx context.Context, arg *Args) ([][]any, error
 }
 func (s *sshClientPool) Close() error {
 	if s.isCloseFlag.Swap(true) {
-		return utils.ErrorfPc("already close ssh conn")
+		return errlist.ErrG.NewError(nil, "already close ssh conn")
 	}
 
 	return nil

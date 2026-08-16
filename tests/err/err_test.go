@@ -1,21 +1,20 @@
 package err
 
 import (
-	"errors"
 	"fmt"
-	"oncecall/err"
+	"oncecall/errlist"
 	"testing"
 )
 
 func TestErr(t *testing.T) {
-	if e := err.Init(); e != nil {
+	if e := errlist.Init(); e != nil {
 		t.Fatal(e)
 		return
 	}
 
-	firstErr := err.ErrG.NewError(errors.New("test error"), "%s", "testing")
+	firstErr := errlist.ErrG.NewError(nil, "%s", "testing")
 	fmt.Println(firstErr)
 
-	secondErr := err.ErrG.NewError(firstErr, "%s", "testing2")
+	secondErr := errlist.ErrG.NewError(firstErr, "%s", "testing2")
 	fmt.Println(secondErr)
 }

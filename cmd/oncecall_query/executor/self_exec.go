@@ -2,6 +2,7 @@ package executor
 
 import (
 	"context"
+	"oncecall/errlist"
 
 	gcfg "oncecall/cfg"
 	"oncecall/cmd/oncecall_query/cfg"
@@ -9,7 +10,6 @@ import (
 	"oncecall/conn"
 	"oncecall/define"
 	"oncecall/manage"
-	"oncecall/utils"
 	"oncecall/utils/generic"
 	"time"
 
@@ -162,7 +162,7 @@ func (e *SelfExecutor) setDbConn(manageP conn.ConnPoolInterface, ctx context.Con
 
 func (e *SelfExecutor) Close() error {
 	if e.execSelfCtxCancelFn == nil {
-		return utils.ErrorfPc("not setting ctx cancel fn")
+		return errlist.ErrG.NewError(nil, "not setting ctx cancel fn")
 	}
 	e.execSelfCtxCancelFn()
 

@@ -2,6 +2,7 @@ package conn
 
 import (
 	"context"
+	"oncecall/errlist"
 	"reflect"
 	"strconv"
 	"strings"
@@ -9,7 +10,6 @@ import (
 
 	"oncecall/cfg"
 	"oncecall/define"
-	"oncecall/utils"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -23,23 +23,22 @@ type redisConnPool struct {
 
 func newRedisConnPool(info *cfg.ConnConfig) (ConnPoolInterface, error) {
 	if info.DBType != string(define.REDIS) {
-		return nil, utils.ErrorfPc("NewRedisConnPool[name:%s] - not support redis dbtype(%s)", info.Name, info.DBType)
+		return nil, errlist.ErrG.NewError(nil, "[name:%s] - not support redis dbtype(%s)", info.Name, info.DBType)
 	}
 
 	_, convertErr := strconv.Atoi(info.Name)
 	if convertErr != nil {
-		return nil, utils.ErrorfPc("NewRedisConnPool[name:%s] - %s", info.Name, convertErr.Error())
+		return nil, errlist.ErrG.NewError(convertErr, "[name:%s] - %s", info.Name)
 	}
 
 	url, err := getConnUrl(info)
 	if err != nil {
-		return nil, utils.ErrorfPc("%s", err)
+		return nil, errlist.ErrG.NewError(err, "not exists redis url")
 	}
 
 	opt, optErr := redis.ParseURL(url)
 	if optErr != nil {
-
-		return nil, utils.ErrorfPc("NewRedisConnPool - [name:%s] parsing url error", info.Name)
+		return nil, errlist.ErrG.NewError(optErr, "not exists redis url")
 	}
 
 	opt.MaxActiveConns = info.MaxConn
@@ -101,7 +100,7 @@ func (r *redisConnPool) RunExecute(ctx context.Context, arg *Args) error {
 		ret := r.conn.Do(ctx, r.splitRespectQuotes(trimQuery)...)
 
 		if ret.Err() != nil {
-			return utils.ErrorfPc("[err:%s] query:[%s]", ret.Err(), trimQuery)
+			return errlist.ErrG.NewError(ret.Err(), "query:[%s]", trimQuery)
 		}
 		return nil
 	}
@@ -110,7 +109,7 @@ func (r *redisConnPool) RunExecute(ctx context.Context, arg *Args) error {
 
 	if arg.IsTranscation {
 		if ret := r.conn.Do(ctx, "MULTI"); ret.Err() != nil {
-			return utils.ErrorfPc("[err:%s] query:[%s]", ret.Err(), trimQuery)
+			return errlist.ErrG.NewError(ret.Err(), "query:[%s]", trimQuery)
 		}
 	}
 
@@ -128,12 +127,12 @@ func (r *redisConnPool) RunExecute(ctx context.Context, arg *Args) error {
 
 	if arg.IsTranscation {
 		if ret := r.conn.Do(ctx, "EXEC"); ret.Err() != nil {
-			return utils.ErrorfPc("[err:%s] query:[%s]", ret.Err(), trimQuery)
+			return errlist.ErrG.NewError(ret.Err(), "query:[%s]", trimQuery)
 		}
 	}
 
 	if loopRetErr != nil {
-		return utils.ErrorfPc("[err:%s] query:[%s]", loopRetErr.Error(), trimQuery)
+		return errlist.ErrG.NewError(loopRetErr, "query:[%s]", trimQuery)
 	}
 
 	return nil
@@ -146,13 +145,13 @@ func (r *redisConnPool) RunQuery(ctx context.Context, arg *Args) ([][]any, error
 		ret := r.conn.Do(ctx, r.splitRespectQuotes(trimQuery)...)
 
 		if ret.Err() != nil {
-			return nil, utils.ErrorfPc("[err:%s] query:[%s]", ret.Err(), trimQuery)
+			return nil, errlist.ErrG.NewError(ret.Err(), "query:[%s]", trimQuery)
 		}
 		return nil, nil
 	}
 
 	if arg.IsTranscation {
-		return nil, utils.ErrorfPc("ERROR: [name:%s]  RunExecute exec(tran multi) not support", r.name)
+		return nil, errlist.ErrG.NewError(nil, "ERROR: [name:%s]  RunExecute exec(tran multi) not support", r.name)
 	}
 
 	param := arg.Args[len(arg.Args)-1]
@@ -162,12 +161,12 @@ func (r *redisConnPool) RunQuery(ctx context.Context, arg *Args) ([][]any, error
 
 	loopRet := r.conn.Do(ctx, realP...)
 	if (loopRet != nil) && loopRet.Err() != nil {
-		return nil, utils.ErrorfPc("[err:%s] query:[%s]", loopRet.Err(), trimQuery)
+		return nil, errlist.ErrG.NewError(loopRet.Err(), "query:[%s]", trimQuery)
 	}
 
 	buf := make([][]any, 1)
 	if err := r.parseOutputAny(loopRet.Val(), 0, buf); err != nil {
-		return nil, utils.ErrorfPc("[err:%s] query:[%s]", err.Error(), trimQuery)
+		return nil, errlist.ErrG.NewError(err, "query:[%s]", trimQuery)
 	}
 
 	return buf, nil
@@ -206,7 +205,7 @@ func (r *redisConnPool) parseOutputAny(val interface{}, idx int, m [][]any) erro
 			return err
 		}
 	default:
-		return utils.ErrorfPc("redisConnPool - Parse not support %s", reflect.ValueOf(val).Type().Name())
+		return errlist.ErrG.NewError(nil, "Parse not support %s", reflect.ValueOf(val).Type().Name())
 	}
 
 	return nil
@@ -244,7 +243,7 @@ func (r *redisConnPool) parseOutputStr(val interface{}, idx int, m [][]string) e
 			return err
 		}
 	default:
-		return utils.ErrorfPc("redisConnPool - parseOutputStr not support %s", reflect.ValueOf(val).Type().Name())
+		return errlist.ErrG.NewError(nil, "parseOutputStr not support %s", reflect.ValueOf(val).Type().Name())
 	}
 
 	return nil

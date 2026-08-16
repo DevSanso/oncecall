@@ -1,7 +1,7 @@
 package cfg
 
 import (
-	"oncecall/utils"
+	"oncecall/errlist"
 	"os"
 
 	"github.com/pelletier/go-toml"
@@ -67,11 +67,11 @@ func GetScriptFromToml(path string) (ScriptSelfConfig, error) {
 	data, err := os.ReadFile(path)
 	ret := ScriptSelfConfig{}
 	if err != nil {
-		return ret, utils.ErrorfPc("%s", err)
+		return ret, errlist.ErrG.NewError(err, "read config file:%s", path)
 	}
 
 	if err = toml.Unmarshal(data, &ret); err != nil {
-		return ret, utils.ErrorfPc("%s", err)
+		return ret, errlist.ErrG.NewError(err, "unmarshal config:%s", path)
 	}
 	return ret, nil
 }
@@ -80,11 +80,11 @@ func GetManageConfFromToml(path string) (*ProcessConfig, error) {
 	data, err := os.ReadFile(path)
 	ret := &ProcessConfig{}
 	if err != nil {
-		return nil, utils.ErrorfPc("%s", err)
+		return nil, errlist.ErrG.NewError(err, "read config file:%s", path)
 	}
 
 	if err = toml.Unmarshal(data, ret); err != nil {
-		return nil, utils.ErrorfPc("%s", err)
+		return nil, errlist.ErrG.NewError(err, "unmarshal config:%s", path)
 	}
 	return ret, nil
 }

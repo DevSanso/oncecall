@@ -3,10 +3,10 @@ package conn
 import (
 	"context"
 	"database/sql"
+	"oncecall/errlist"
 	"time"
 
 	"oncecall/cfg"
-	"oncecall/utils"
 
 	_ "github.com/SAP/go-hdb/driver"
 	_ "github.com/go-sql-driver/mysql"
@@ -30,12 +30,12 @@ func newStandardConnPool(info *cfg.ConnConfig) (ConnPoolInterface, error) {
 
 	driver, url, err := getConnUrlAndDriver(info)
 	if err != nil {
-		return nil, utils.ErrorfPc("[err:%s]", err)
+		return nil, errlist.ErrG.NewError(err, "driver not exists, name:%s", info.Name)
 	}
 
 	db, dbErr = sql.Open(driver, url)
 	if dbErr != nil {
-		return nil, utils.ErrorfPc("[err:%s]", dbErr)
+		return nil, errlist.ErrG.NewError(dbErr, "driver open failed, name:%s", info.Name)
 	}
 
 	db.SetMaxIdleConns(info.MaxConn)
@@ -52,22 +52,22 @@ func (p *standardConnPool) GetConfig() cfg.ConnConfig {
 func (p *standardConnPool) RunExecute(ctx context.Context, arg *Args) error {
 	conn, connErr := p.conn.Conn(ctx)
 	if connErr != nil {
-		return utils.ErrorfPc("[err:%s], name:[%s], query:[%.128s]", connErr, p.name, arg.Query)
+		return errlist.ErrG.NewError(connErr, "exec conn failed, name:%s", p.name)
 	}
 	defer conn.Close()
 
 	if !arg.IsTranscation {
 		tx, txErr := conn.BeginTx(ctx, nil)
 		if txErr != nil {
-			return utils.ErrorfPc("[err:%s], name:[%s], query:[%.128s]", txErr, p.name, arg.Query)
+			return errlist.ErrG.NewError(txErr, "exec tx failed, name:%s, query:%s", p.name, arg.Query)
 		}
 		var isNotErr = true
 
 		defer func() {
 			if isNotErr {
-				tx.Commit()
+				_ = tx.Commit()
 			} else {
-				tx.Rollback()
+				_ = tx.Rollback()
 			}
 		}()
 
@@ -77,7 +77,7 @@ func (p *standardConnPool) RunExecute(ctx context.Context, arg *Args) error {
 
 				if retErr != nil {
 					isNotErr = false
-					return utils.ErrorfPc("[err:%s], query:[%.128s]", retErr, arg.Query)
+					return errlist.ErrG.NewError(retErr, "exec sql failed, name:%s, query:%s", p.name, arg.Query)
 				}
 			}
 		} else {
@@ -85,7 +85,7 @@ func (p *standardConnPool) RunExecute(ctx context.Context, arg *Args) error {
 
 			if retErr != nil {
 				isNotErr = false
-				return utils.ErrorfPc("[err:%s], query:[%.128s]", retErr, arg.Query)
+				return errlist.ErrG.NewError(retErr, "exec sql(no args) failed, name:%s, query:%s", p.name, arg.Query)
 			}
 		}
 	} else {
@@ -94,14 +94,14 @@ func (p *standardConnPool) RunExecute(ctx context.Context, arg *Args) error {
 				_, retErr := conn.ExecContext(ctx, arg.Query, param...)
 
 				if retErr != nil {
-					return utils.ErrorfPc("[err:%s], query:[%.128s]", retErr, arg.Query)
+					return errlist.ErrG.NewError(retErr, "exec sql failed, name:%s, query:%s", p.name, arg.Query)
 				}
 			}
 		} else {
 			_, retErr := conn.ExecContext(ctx, arg.Query)
 
 			if retErr != nil {
-				return utils.ErrorfPc("[err:%s], query:[%.128s]", retErr, arg.Query)
+				return errlist.ErrG.NewError(retErr, "exec sql(no args) failed, name:%s, query:%s", p.name, arg.Query)
 			}
 		}
 	}
@@ -113,12 +113,12 @@ func (p *standardConnPool) RunQuery(ctx context.Context, arg *Args) ([][]any, er
 	conn, connErr := p.conn.Conn(ctx)
 	if connErr != nil {
 
-		return nil, utils.ErrorfPc("[name:%s] [err:%s] query:[%.128s]", p.name, connErr, arg.Query)
+		return nil, errlist.ErrG.NewError(connErr, "exec conn failed, name:%s", p.name)
 	}
 	defer conn.Close()
 
 	if arg.IsTranscation {
-		return nil, utils.ErrorfPc("ERROR: [name:%s] query:[%.128s]  RunExecute tx failed", p.name, arg.Query)
+		return nil, errlist.ErrG.NewError(nil, "exec sql transcation failed, name:%s", p.name)
 	}
 
 	var r *sql.Rows = nil
@@ -127,21 +127,21 @@ func (p *standardConnPool) RunQuery(ctx context.Context, arg *Args) ([][]any, er
 		var retErr error
 		r, retErr = conn.QueryContext(ctx, arg.Query, param...)
 		if retErr != nil {
-			return nil, utils.ErrorfPc("[err:%s], query:[%.128s]", retErr, arg.Query)
+			return nil, errlist.ErrG.NewError(retErr, "exec sql query failed, name:%s", p.name)
 		}
 	} else {
 		var retErr error
 		r, retErr = conn.QueryContext(ctx, arg.Query)
 
 		if retErr != nil {
-			return nil, utils.ErrorfPc("[err:%s], query:[%.128s]", retErr, arg.Query)
+			return nil, errlist.ErrG.NewError(retErr, "exec sql(no args) query failed, name:%s", p.name)
 		}
 	}
 	defer r.Close()
 
 	cType, colErr := r.ColumnTypes()
 	if colErr != nil {
-		return nil, utils.ErrorfPc("[err:%s], query:[%.128s]", colErr, arg.Query)
+		return nil, errlist.ErrG.NewError(colErr, "can't get column type, name:%s", p.name)
 	}
 
 	ret := make([][]any, 0, 5)
@@ -161,7 +161,7 @@ func (p *standardConnPool) RunQuery(ctx context.Context, arg *Args) ([][]any, er
 			} else if isTypeBytes(dType) {
 				rowD[idx] = sql.RawBytes{}
 			} else {
-				return nil, utils.ErrorfPc("[err: not support type [%s], query[%.128s]", dType, arg.Query)
+				return nil, errlist.ErrG.NewError(nil, "not support type, name:%s, type:%s", p.name, dType)
 			}
 		}
 
@@ -174,7 +174,7 @@ func (p *standardConnPool) RunQuery(ctx context.Context, arg *Args) ([][]any, er
 			for idx := range retP {
 				retP[idx] = 0
 			}
-			return nil, utils.ErrorfPc("[err:%s], query:[%.128s]", scanErr, arg.Query)
+			return nil, errlist.ErrG.NewError(scanErr, "exec sql scan failed, name:%s", p.name)
 		}
 
 		ret = append(ret, rowD)

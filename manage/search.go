@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"oncecall/cfg"
 	"oncecall/conn"
-	"oncecall/utils"
+	"oncecall/errlist"
 )
 
 type ServerDbInfo struct {
@@ -63,22 +63,22 @@ func (c *DBSearch) initDbOption(ctx context.Context, info []ServerDbInfo) error 
 		})
 
 		if err != nil {
-			return utils.ErrorfPc("%s", err.Error())
+			return errlist.ErrG.NewError(err, "get failed manage db list")
 		}
 
 		for rowIdx := range data {
 			if len(data[rowIdx]) < 2 {
-				return utils.ErrorfPc("not size two : %s", c.manageOptionQuery)
+				return errlist.ErrG.NewError(nil, "not size two : %s", c.manageOptionQuery)
 			}
 
 			convert, ok = data[rowIdx][0].(string)
 			if !ok {
-				return utils.ErrorfPc("convert failed : %d.1:%s", info[idx].Identifier, c.manageOptionQuery)
+				return errlist.ErrG.NewError(nil, "convert failed : %d.1:%s", info[idx].Identifier, c.manageOptionQuery)
 			}
 			rowBuf.Key = convert
 			convert, ok = data[rowIdx][1].(string)
 			if !ok {
-				return utils.ErrorfPc("not size two :  %d.2:%s", info[idx].Identifier, c.manageOptionQuery)
+				return errlist.ErrG.NewError(nil, "not size two :  %d.2:%s", info[idx].Identifier, c.manageOptionQuery)
 			}
 			rowBuf.Value = convert
 
@@ -97,7 +97,7 @@ func (c *DBSearch) initDbOption(ctx context.Context, info []ServerDbInfo) error 
 func (c *DBSearch) GetDb(ctx context.Context) ([]ServerDbInfo, error) {
 	query := ""
 	if c.manageQuery == "" {
-		return nil, utils.ErrorfPc("not exists query")
+		return nil, errlist.ErrG.NewError(nil, "not exists query")
 	} else {
 		query = c.manageQuery
 	}
@@ -115,7 +115,7 @@ func (c *DBSearch) GetDb(ctx context.Context) ([]ServerDbInfo, error) {
 	res := make([]ServerDbInfo, len(data))
 
 	if len(data) > 0 && len(data[0]) < 7 {
-		return nil, utils.ErrorfPc("not match data length %d", len(data[0]))
+		return nil, errlist.ErrG.NewError(nil, "not match data length %d", len(data[0]))
 	}
 
 	for idx := range data {
@@ -144,7 +144,7 @@ func (c *DBSearch) GetDb(ctx context.Context) ([]ServerDbInfo, error) {
 		res[idx].Option = make(map[string]any)
 
 		if !convertOk {
-			return nil, utils.ErrorfPc("convert failed data")
+			return nil, errlist.ErrG.NewError(nil, "convert failed data")
 		}
 	}
 

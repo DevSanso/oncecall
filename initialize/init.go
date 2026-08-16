@@ -4,6 +4,7 @@ import (
 	"flag"
 	"net/http"
 	_ "net/http/pprof"
+	"oncecall/errlist"
 	"oncecall/utils"
 	"os"
 	"path/filepath"
@@ -46,7 +47,7 @@ func setLogger() (deferFn func(), err error) {
 		logConfig.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 		logger, logErr := logConfig.Build()
 		if logErr != nil {
-			return nil, utils.ErrorfPc("%s", logErr.Error())
+			return nil, errlist.ErrG.NewError(logErr, "config load failed", "")
 		}
 		zap.ReplaceGlobals(logger)
 		return nil, nil
@@ -54,21 +55,21 @@ func setLogger() (deferFn func(), err error) {
 	logDirAbs, pathErr := filepath.Abs(*logDir)
 
 	if pathErr != nil {
-		return nil, utils.ErrorfPc("%s", pathErr)
+		return nil, errlist.ErrG.NewError(pathErr, "absolute path failed : %s", *logDir)
 	}
 
 	stat, statErr := os.Stat(logDirAbs)
 	if statErr != nil {
-		return nil, utils.ErrorfPc("%s", statErr)
+		return nil, errlist.ErrG.NewError(statErr, "logdir stat failed : %s", logDirAbs)
 	}
 
 	if !stat.IsDir() {
-		return nil, utils.ErrorfPc("is not directory %s", stat.Name())
+		return nil, errlist.ErrG.NewError(nil, "is not directory %s", stat.Name())
 	}
 
 	maxSize, maxSizeErr := utils.ParseMemorySize(*logMaxSize)
 	if maxSizeErr != nil {
-		return nil, utils.ErrorfPc("%s", maxSizeErr.Error())
+		return nil, errlist.ErrG.NewError(maxSizeErr, "parse memory size failed : %s", *logMaxSize)
 	}
 
 	encoderConfig := zap.NewProductionEncoderConfig()
@@ -81,22 +82,22 @@ func setLogger() (deferFn func(), err error) {
 
 	errorFile, errfileErr := utils.NewRotateWriter(filepath.Join(logDirAbs, processName+".error.log"), maxSize, *logRotate)
 	if errfileErr != nil {
-		return nil, utils.ErrorfPc("%s", errfileErr.Error())
+		return nil, errlist.ErrG.NewError(errfileErr, "err rotate log file failed : %s", processName)
 	}
 
 	infoFile, infoFileErr := utils.NewRotateWriter(filepath.Join(logDirAbs, processName+".info.log"), maxSize, *logRotate)
 	if infoFileErr != nil {
-		return nil, utils.ErrorfPc("%s", infoFileErr.Error())
+		return nil, errlist.ErrG.NewError(infoFileErr, "info rotate log file failed : %s", processName)
 	}
 
 	debugFile, debugFileErr := utils.NewRotateWriter(filepath.Join(logDirAbs, processName+".debug.log"), maxSize, *logRotate)
 	if debugFileErr != nil {
-		return nil, utils.ErrorfPc("%s", debugFileErr.Error())
+		return nil, errlist.ErrG.NewError(debugFileErr, "debug rotate log file failed : %s", processName)
 	}
 
 	allFile, allFileErr := utils.NewRotateWriter(filepath.Join(logDirAbs, processName+".all.log"), maxSize, *logRotate)
 	if allFileErr != nil {
-		return nil, utils.ErrorfPc("%s", allFileErr.Error())
+		return nil, errlist.ErrG.NewError(allFileErr, "all rotate log file failed : %s", processName)
 	}
 
 	deferFn = func() {
