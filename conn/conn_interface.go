@@ -9,7 +9,7 @@ import (
 type Args struct {
 	Query         string
 	Args          [][]any
-	IsTranscation bool
+	IsTransaction bool
 }
 
 type ConnPoolInterface interface {
@@ -25,6 +25,8 @@ func GetConnPool(info *cfg.ConnConfig) (ConnPoolInterface, error) {
 		return newRedisConnPool(info)
 	case string(define.SSH):
 		return newSSHConnPool(info)
+	case string(define.CASSANDRA):
+		return newCassandraConnPool(info)
 	default:
 		return newStandardConnPool(info)
 	}

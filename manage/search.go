@@ -105,7 +105,7 @@ func (c *DBSearch) GetDb(ctx context.Context) ([]ServerDbInfo, error) {
 	data, dataErr := c.manageDb.RunQuery(ctx, &conn.Args{
 		Query:         query,
 		Args:          nil,
-		IsTranscation: false,
+		IsTransaction: false,
 	})
 
 	if dataErr != nil {

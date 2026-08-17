@@ -23,7 +23,6 @@ var urlMap map[define.DBType]struct {
 	define.SQLITE:   {Driver: "sqlite3", Url: "%s"},
 	define.MYSQL:    {Driver: "mysql", Url: "%s:%s@tcp(%s)/%s"},
 	define.REDIS:    {Driver: CustomDriver, Url: "redis://%s:%s@%s/%s"},
-	define.SSH:      {Driver: CustomDriver, Url: "ssh://%s:%s@%s"},
 }
 
 var urlArgsFn map[define.DBType]func(*cfg.ConnConfig) []any = map[define.DBType]func(*cfg.ConnConfig) []any{

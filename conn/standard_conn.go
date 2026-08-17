@@ -56,7 +56,7 @@ func (p *standardConnPool) RunExecute(ctx context.Context, arg *Args) error {
 	}
 	defer conn.Close()
 
-	if !arg.IsTranscation {
+	if !arg.IsTransaction {
 		tx, txErr := conn.BeginTx(ctx, nil)
 		if txErr != nil {
 			return errlist.ErrG.NewError(txErr, "exec tx failed, name:%s, query:%s", p.name, arg.Query)
@@ -117,13 +117,13 @@ func (p *standardConnPool) RunQuery(ctx context.Context, arg *Args) ([][]any, er
 	}
 	defer conn.Close()
 
-	if arg.IsTranscation {
-		return nil, errlist.ErrG.NewError(nil, "exec sql transcation failed, name:%s", p.name)
+	if arg.IsTransaction {
+		return nil, errlist.ErrG.NewError(nil, "exec sql transcation not support, name:%s", p.name)
 	}
 
 	var r *sql.Rows = nil
-	if arg.Args != nil {
-		param := arg.Args[len(arg.Args)-1]
+	if arg.Args != nil && len(arg.Args) > 0 {
+		param := arg.Args[0]
 		var retErr error
 		r, retErr = conn.QueryContext(ctx, arg.Query, param...)
 		if retErr != nil {

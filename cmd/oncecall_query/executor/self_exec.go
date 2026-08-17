@@ -30,7 +30,7 @@ func (ji *selfJobImpl) initDb(ctx context.Context, p conn.ConnPoolInterface, tri
 	triggerData, triggerErr := p.RunQuery(ctx, &conn.Args{
 		Query:         triggerQuery,
 		Args:          nil,
-		IsTranscation: false,
+		IsTransaction: false,
 	})
 	if triggerErr != nil {
 		return triggerErr
@@ -44,7 +44,7 @@ func (ji *selfJobImpl) initDb(ctx context.Context, p conn.ConnPoolInterface, tri
 		initErr := p.RunExecute(ctx, &conn.Args{
 			Query:         q,
 			Args:          nil,
-			IsTranscation: false,
+			IsTransaction: false,
 		})
 		if initErr != nil {
 			return initErr

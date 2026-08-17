@@ -107,7 +107,7 @@ func (r *redisConnPool) RunExecute(ctx context.Context, arg *Args) error {
 
 	var loopRetErr error = nil
 
-	if arg.IsTranscation {
+	if arg.IsTransaction {
 		if ret := r.conn.Do(ctx, "MULTI"); ret.Err() != nil {
 			return errlist.ErrG.NewError(ret.Err(), "query:[%s]", trimQuery)
 		}
@@ -125,7 +125,7 @@ func (r *redisConnPool) RunExecute(ctx context.Context, arg *Args) error {
 		}
 	}
 
-	if arg.IsTranscation {
+	if arg.IsTransaction {
 		if ret := r.conn.Do(ctx, "EXEC"); ret.Err() != nil {
 			return errlist.ErrG.NewError(ret.Err(), "query:[%s]", trimQuery)
 		}
@@ -150,11 +150,11 @@ func (r *redisConnPool) RunQuery(ctx context.Context, arg *Args) ([][]any, error
 		return nil, nil
 	}
 
-	if arg.IsTranscation {
+	if arg.IsTransaction {
 		return nil, errlist.ErrG.NewError(nil, "ERROR: [name:%s]  RunExecute exec(tran multi) not support", r.name)
 	}
 
-	param := arg.Args[len(arg.Args)-1]
+	param := arg.Args[0]
 	realP := make([]any, 0, len(param)+1)
 	realP = append(realP, r.splitRespectQuotes(trimQuery)...)
 	realP = append(realP, param...)

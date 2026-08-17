@@ -51,13 +51,13 @@ func (s *SelfScript) isTrigger(id int, p conn.ConnPoolInterface, m map[string]an
 		data, dataErr = p.RunQuery(context.Background(), &conn.Args{
 			Query:         conf.GetTrigger.Query,
 			Args:          nil,
-			IsTranscation: false,
+			IsTransaction: false,
 		})
 	} else {
 		data, dataErr = p.RunQuery(context.Background(), &conn.Args{
 			Query:         conf.GetTrigger.Query,
 			Args:          [][]any{bindData},
-			IsTranscation: false,
+			IsTransaction: false,
 		})
 	}
 
@@ -86,7 +86,7 @@ func (s *SelfScript) GetData(p conn.ConnPoolInterface, conf *cfg.ScriptSelfConfi
 	data, dataErr := p.RunQuery(context.Background(), &conn.Args{
 		Query:         conf.Get.Query,
 		Args:          convertBindVal,
-		IsTranscation: conf.IsTranscation.Get,
+		IsTransaction: conf.IsTranscation.Get,
 	})
 
 	if dataErr != nil {
@@ -147,7 +147,7 @@ func (s *SelfScript) Run(conf *cfg.ScriptSelfConfig, id int, jobCache *generic.G
 		execErr := storeP.RunExecute(context.Background(), &conn.Args{
 			Query:         conf.Set.RealTime.Query,
 			Args:          realData,
-			IsTranscation: conf.IsTranscation.Set,
+			IsTransaction: conf.IsTranscation.Set,
 		})
 		if execErr != nil {
 			return execErr
@@ -163,7 +163,7 @@ func (s *SelfScript) Run(conf *cfg.ScriptSelfConfig, id int, jobCache *generic.G
 		execErr := storeP.RunExecute(context.Background(), &conn.Args{
 			Query:         conf.Set.Collect.Query,
 			Args:          realData,
-			IsTranscation: conf.IsTranscation.Set,
+			IsTransaction: conf.IsTranscation.Set,
 		})
 		if execErr != nil {
 			return execErr
