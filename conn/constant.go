@@ -39,11 +39,11 @@ func getConnUrlAndDriver(info *cfg.ConnConfig) (driver string, url string, e err
 
 	mapping, ok := urlMap[dbtype]
 	if !ok {
-		return "", "", errors.New("makeConnUrl - not support : " + string(dbtype))
+		return "", "", errors.New("not support : " + string(dbtype))
 	}
 	argsFn, argsOk := urlArgsFn[dbtype]
 	if !argsOk {
-		return "", "", errors.New("makeConnUrl - not support : " + string(dbtype))
+		return "", "", errors.New("not support : " + string(dbtype))
 	}
 
 	return mapping.Driver, fmt.Sprintf(mapping.Url, argsFn(info)...), nil

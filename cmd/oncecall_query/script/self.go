@@ -8,7 +8,7 @@ import (
 	"oncecall/errlist"
 	"oncecall/utils"
 	"oncecall/utils/generic"
-	"oncecall/vm"
+	"oncecall/vm/lua"
 	"time"
 
 	"go.uber.org/zap"
@@ -96,7 +96,7 @@ func (s *SelfScript) GetData(p conn.ConnPoolInterface, conf *cfg.ScriptSelfConfi
 	return data, nil
 }
 
-func (s *SelfScript) Run(conf *cfg.ScriptSelfConfig, id int, jobCache *generic.GenericSyncMap[string, any], pMap *generic.GenericSyncMap[generic.Pair[int, bool], conn.ConnPoolInterface], vmP *generic.GenericSyncPool[vm.LuaVm]) error {
+func (s *SelfScript) Run(conf *cfg.ScriptSelfConfig, id int, jobCache *generic.GenericSyncMap[string, any], pMap *generic.GenericSyncMap[generic.Pair[int, bool], conn.ConnPoolInterface], vmP *generic.GenericSyncPool[lua.LuaVm]) error {
 	var p conn.ConnPoolInterface
 	var getPoolOk bool
 	p, getPoolOk = pMap.Load(generic.Pair[int, bool]{First: id, Second: false})

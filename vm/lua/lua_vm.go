@@ -1,8 +1,9 @@
-package vm
+package lua
 
 import (
 	"oncecall/errlist"
 	"oncecall/utils/generic"
+	"oncecall/vm"
 	"reflect"
 	"sync"
 
@@ -20,7 +21,7 @@ type luaVM struct {
 	tempGPtrMap *generic.GenericSyncMap[string, any]
 }
 
-type LuaVm Vm[lua.State]
+type LuaVm vm.Vm[lua.State]
 
 func NewLuaVM() LuaVm {
 	obj := &luaVM{

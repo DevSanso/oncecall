@@ -69,7 +69,7 @@ func Init() (err error) {
 	}
 
 	ErrG.once.Do(func() {
-		p := filepath.FromSlash("/err/match.go")
+		p := filepath.FromSlash("/errlist/match.go")
 		ErrG.projectRoot = strings.Replace(file, p, "", 1)
 	})
 

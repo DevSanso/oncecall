@@ -4,14 +4,14 @@ import (
 	"context"
 	"oncecall/conn"
 	"oncecall/utils/generic"
-	"oncecall/vm"
+	"oncecall/vm/lua"
 )
 
 type execState[S any] struct {
 	ctx        context.Context
 	jobCache   *generic.GenericSyncMap[string, any]
 	pMap       *generic.GenericSyncMap[generic.Pair[int, bool], conn.ConnPoolInterface]
-	vmP        *generic.GenericSyncPool[vm.LuaVm]
+	vmP        *generic.GenericSyncPool[lua.LuaVm]
 	scriptPool *generic.GenericSyncPool[S]
 
 	isRunFlagMap *generic.GenericSyncMap[string, bool]
@@ -22,8 +22,8 @@ func newExecState[S any](scriptGenFn func() S) *execState[S] {
 		jobCache:   generic.NewGenericSyncMap[string, any](),
 		pMap:       generic.NewGenericSyncMap[generic.Pair[int, bool], conn.ConnPoolInterface](),
 		scriptPool: generic.NewGenericSyncPool[S](scriptGenFn),
-		vmP: generic.NewGenericSyncPool[vm.LuaVm](func() vm.LuaVm {
-			v := vm.NewLuaVM()
+		vmP: generic.NewGenericSyncPool[lua.LuaVm](func() lua.LuaVm {
+			v := lua.NewLuaVM()
 
 			return v
 		}),
