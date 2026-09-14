@@ -2,31 +2,45 @@ package executor
 
 import (
 	"context"
+	"oncecall/cmd/oncecall_query/cfg"
 	"oncecall/conn"
 	"oncecall/utils/generic"
+	"oncecall/vm"
 	"oncecall/vm/lua"
+	"sync"
 )
 
-type execState[S any] struct {
-	ctx        context.Context
-	jobCache   *generic.GenericSyncMap[string, any]
-	pMap       *generic.GenericSyncMap[generic.Pair[int, bool], conn.ConnPoolInterface]
-	vmP        *generic.GenericSyncPool[lua.LuaVm]
-	scriptPool *generic.GenericSyncPool[S]
+type execPrivateState struct {
+	manage conn.ConnPoolInterface
 
-	isRunFlagMap *generic.GenericSyncMap[string, bool]
+	logicMutex    sync.Mutex
+	DbListRaw     [][]any
+	DbOptionRaw   [][]any
+	ScriptRaw     [][]any
+	ScriptLinkRaw [][]any
+
+	//dbname, script
+	newRunQ         []generic.Pair[string, string]
+	threadStopFnMap *generic.GenericSyncMap[generic.Pair[string, string], context.CancelFunc]
 }
 
-func newExecState[S any](scriptGenFn func() S) *execState[S] {
-	return &execState[S]{
-		jobCache:   generic.NewGenericSyncMap[string, any](),
-		pMap:       generic.NewGenericSyncMap[generic.Pair[int, bool], conn.ConnPoolInterface](),
-		scriptPool: generic.NewGenericSyncPool[S](scriptGenFn),
-		vmP: generic.NewGenericSyncPool[lua.LuaVm](func() lua.LuaVm {
-			v := lua.NewLuaVM()
+type execSharedState struct {
+	ctx       context.Context
+	pMap      *generic.GenericSyncMap[string, conn.ConnPoolInterface]
+	scriptMap *generic.GenericSyncMap[string, generic.Pair[[16]byte, *cfg.ScriptConfig]]
+	vmP       *generic.GenericSyncPool[vm.Vm]
 
+	isRunningThreadMap *generic.GenericSyncMap[generic.Pair[string, string], bool]
+}
+
+func newExecSharedState() *execSharedState {
+	return &execSharedState{
+		pMap: generic.NewGenericSyncMap[string, conn.ConnPoolInterface](),
+		vmP: generic.NewGenericSyncPool[vm.Vm](func() vm.Vm {
+			v := lua.NewLuaVM()
 			return v
 		}),
-		isRunFlagMap: generic.NewGenericSyncMap[string, bool](),
+
+		isRunningThreadMap: generic.NewGenericSyncMap[generic.Pair[string, string], bool](),
 	}
 }

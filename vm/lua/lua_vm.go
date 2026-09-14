@@ -21,9 +21,7 @@ type luaVM struct {
 	tempGPtrMap *generic.GenericSyncMap[string, any]
 }
 
-type LuaVm vm.Vm[lua.State]
-
-func NewLuaVM() LuaVm {
+func NewLuaVM() vm.Vm {
 	obj := &luaVM{
 		raw:         lua.NewState(),
 		once:        sync.Once{},
@@ -260,8 +258,4 @@ func (w *luaVM) Do(cache *generic.GenericSyncMap[string, any], script string, da
 	}
 
 	return nil, nil
-}
-
-func (w *luaVM) Extend(extendFn func(raw *lua.State) error) error {
-	return extendFn(w.raw)
 }

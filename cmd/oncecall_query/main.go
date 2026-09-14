@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	_ "net/http/pprof"
-	gcfg "oncecall/cfg"
 	"oncecall/cmd/oncecall_query/cfg"
 	"oncecall/cmd/oncecall_query/executor"
 	"oncecall/errlist"
@@ -25,16 +24,16 @@ var (
 	jobDirPath = flag.String("jobdir", "../job", "script job dir")
 )
 
-func getConfig() (app *gcfg.Config, manageConf *cfg.ProcessConfig, self []cfg.ScriptSelfConfig, err error) {
+func getConfig() (app *cfg.Config, manageConf *cfg.ProcessConfig, self []cfg.ScriptSelfConfig, err error) {
 
 	appConfFile := filepath.Join(*cfgDir, "common.toml")
-	appConf, appConfErr := gcfg.GetConfigFromToml(appConfFile)
+	appConf, appConfErr := cfg.GetConfigFromToml(appConfFile)
 	if appConfErr != nil {
 		return nil, nil, nil, appConfErr
 	}
 	app = appConf
 	procConfFile := filepath.Join(*cfgDir, "oncecall.query.toml")
-	queryConf, queryConfErr := cfg.GetManageConfFromToml(procConfFile)
+	queryConf, queryConfErr := cfg.GetManageConfTomlFromFile(procConfFile)
 	if queryConfErr != nil {
 		return nil, nil, nil, queryConfErr
 	}

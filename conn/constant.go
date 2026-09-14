@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"oncecall/cfg"
 	"oncecall/define"
 )
 
@@ -25,16 +24,16 @@ var urlMap map[define.DBType]struct {
 	define.REDIS:    {Driver: CustomDriver, Url: "redis://%s:%s@%s/%s"},
 }
 
-var urlArgsFn map[define.DBType]func(*cfg.ConnConfig) []any = map[define.DBType]func(*cfg.ConnConfig) []any{
-	define.POSTGRES: func(c *cfg.ConnConfig) []any { return []any{c.Id, c.Password, c.Server, c.Name, "oncecall"} },
-	define.SQLSVR:   func(c *cfg.ConnConfig) []any { return []any{c.Server, c.Id, c.Password, c.Name, "oncecall"} },
-	define.SAPHANA:  func(c *cfg.ConnConfig) []any { return []any{c.Id, c.Password, c.Server} },
-	define.SQLITE:   func(c *cfg.ConnConfig) []any { return []any{c.Name} },
-	define.MYSQL:    func(c *cfg.ConnConfig) []any { return []any{c.Id, c.Password, c.Server, c.Name} },
-	define.REDIS:    func(c *cfg.ConnConfig) []any { return []any{c.Id, c.Password, c.Server, c.Name} },
+var urlArgsFn map[define.DBType]func(*ConnConfig) []any = map[define.DBType]func(*ConnConfig) []any{
+	define.POSTGRES: func(c *ConnConfig) []any { return []any{c.Id, c.Password, c.Server, c.Name, "oncecall"} },
+	define.SQLSVR:   func(c *ConnConfig) []any { return []any{c.Server, c.Id, c.Password, c.Name, "oncecall"} },
+	define.SAPHANA:  func(c *ConnConfig) []any { return []any{c.Id, c.Password, c.Server} },
+	define.SQLITE:   func(c *ConnConfig) []any { return []any{c.Name} },
+	define.MYSQL:    func(c *ConnConfig) []any { return []any{c.Id, c.Password, c.Server, c.Name} },
+	define.REDIS:    func(c *ConnConfig) []any { return []any{c.Id, c.Password, c.Server, c.Name} },
 }
 
-func getConnUrlAndDriver(info *cfg.ConnConfig) (driver string, url string, e error) {
+func getConnUrlAndDriver(info *ConnConfig) (driver string, url string, e error) {
 	dbtype := define.DBType(info.DBType)
 
 	mapping, ok := urlMap[dbtype]
@@ -49,7 +48,7 @@ func getConnUrlAndDriver(info *cfg.ConnConfig) (driver string, url string, e err
 	return mapping.Driver, fmt.Sprintf(mapping.Url, argsFn(info)...), nil
 }
 
-func getConnUrl(info *cfg.ConnConfig) (url string, e error) {
+func getConnUrl(info *ConnConfig) (url string, e error) {
 	_, url, e = getConnUrlAndDriver(info)
 	return
 }

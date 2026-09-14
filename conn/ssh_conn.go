@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"oncecall/cfg"
 	"oncecall/define"
 	"oncecall/errlist"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -28,10 +28,10 @@ type sshClientPool struct {
 
 	initClientMutex sync.Mutex
 
-	conf *cfg.ConnConfig
+	conf *ConnConfig
 }
 
-func newSSHConnPool(info *cfg.ConnConfig) (ConnPoolInterface, error) {
+func newSSHConnPool(info *ConnConfig) (ConnPoolInterface, error) {
 	if info.DBType != string(define.SSH) {
 		return nil, errlist.ErrG.NewError(nil, "not match db type: %s", info.DBType)
 	}
@@ -103,7 +103,7 @@ func newSSHConnPool(info *cfg.ConnConfig) (ConnPoolInterface, error) {
 
 }
 
-func (s *sshClientPool) GetConfig() cfg.ConnConfig {
+func (s *sshClientPool) GetConfig() ConnConfig {
 	return *s.conf
 }
 
@@ -214,13 +214,13 @@ func (s *sshClientPool) splitLineKeepQuote(line string, sep string) []string {
 	return result
 }
 
-func (s *sshClientPool) RunQuery(ctx context.Context, arg *Args) ([][]any, error) {
+func (s *sshClientPool) RunQuery(ctx context.Context, arg *Args) (rows [][]any, name []string, err error) {
 	if s.isCloseFlag.Load() {
-		return nil, errlist.ErrG.NewError(nil, "already close ssh conn")
+		return nil, nil, errlist.ErrG.NewError(nil, "already close ssh conn")
 	}
 
 	if sess, err := s.getSession(); err != nil {
-		return nil, err
+		return nil, nil, err
 	} else {
 		defer sess.Close()
 
@@ -242,11 +242,11 @@ func (s *sshClientPool) RunQuery(ctx context.Context, arg *Args) ([][]any, error
 
 		if err != nil {
 			if errB.Len() > 0 {
-				return nil, errlist.ErrG.NewError(err, "cmd err:%s", errB.String())
+				return nil, nil, errlist.ErrG.NewError(err, "cmd err:%s", errB.String())
 			}
-			return nil, errlist.ErrG.NewError(err, "ssh err")
+			return nil, nil, errlist.ErrG.NewError(err, "ssh err")
 		} else if errB.Len() > 0 {
-			return nil, errlist.ErrG.NewError(nil, "cmd err:%s", errB.String())
+			return nil, nil, errlist.ErrG.NewError(nil, "cmd err:%s", errB.String())
 		}
 
 		lines := s.splitLineKeepQuote(b.String(), s.newlineChar)
@@ -277,7 +277,12 @@ func (s *sshClientPool) RunQuery(ctx context.Context, arg *Args) ([][]any, error
 			}
 		}
 
-		return res, nil
+		name = make([]string, len(res))
+		for idx := range res {
+			name[idx] = strconv.Itoa(idx + 1)
+		}
+
+		return res, nil, nil
 	}
 }
 func (s *sshClientPool) Close() error {

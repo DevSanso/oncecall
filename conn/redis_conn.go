@@ -4,11 +4,11 @@ import (
 	"context"
 	"oncecall/errlist"
 	"reflect"
+
 	"strconv"
 	"strings"
 	"time"
 
-	"oncecall/cfg"
 	"oncecall/define"
 
 	"github.com/redis/go-redis/v9"
@@ -18,10 +18,10 @@ type redisConnPool struct {
 	conn *redis.Client
 	name string
 
-	conf *cfg.ConnConfig
+	conf *ConnConfig
 }
 
-func newRedisConnPool(info *cfg.ConnConfig) (ConnPoolInterface, error) {
+func newRedisConnPool(info *ConnConfig) (ConnPoolInterface, error) {
 	if info.DBType != string(define.REDIS) {
 		return nil, errlist.ErrG.NewError(nil, "[name:%s] - not support redis dbtype(%s)", info.Name, info.DBType)
 	}
@@ -90,7 +90,7 @@ func (r *redisConnPool) splitRespectQuotes(s string) []any {
 
 	return result
 }
-func (r *redisConnPool) GetConfig() cfg.ConnConfig {
+func (r *redisConnPool) GetConfig() ConnConfig {
 	return *r.conf
 }
 func (r *redisConnPool) RunExecute(ctx context.Context, arg *Args) error {
@@ -138,20 +138,20 @@ func (r *redisConnPool) RunExecute(ctx context.Context, arg *Args) error {
 	return nil
 }
 
-func (r *redisConnPool) RunQuery(ctx context.Context, arg *Args) ([][]any, error) {
+func (r *redisConnPool) RunQuery(ctx context.Context, arg *Args) (rows [][]any, name []string,err error) {
 	trimQuery := strings.ReplaceAll(arg.Query, "\n", "")
 	trimQuery = strings.ReplaceAll(trimQuery, "\r", "")
 	if arg.Args == nil || len(arg.Args) <= 0 {
 		ret := r.conn.Do(ctx, r.splitRespectQuotes(trimQuery)...)
 
 		if ret.Err() != nil {
-			return nil, errlist.ErrG.NewError(ret.Err(), "query:[%s]", trimQuery)
+			return nil, nil, errlist.ErrG.NewError(ret.Err(), "query:[%s]", trimQuery)
 		}
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	if arg.IsTransaction {
-		return nil, errlist.ErrG.NewError(nil, "ERROR: [name:%s]  RunExecute exec(tran multi) not support", r.name)
+		return nil, nil, errlist.ErrG.NewError(nil, "ERROR: [name:%s]  RunExecute exec(tran multi) not support", r.name)
 	}
 
 	param := arg.Args[0]
@@ -161,15 +161,21 @@ func (r *redisConnPool) RunQuery(ctx context.Context, arg *Args) ([][]any, error
 
 	loopRet := r.conn.Do(ctx, realP...)
 	if (loopRet != nil) && loopRet.Err() != nil {
-		return nil, errlist.ErrG.NewError(loopRet.Err(), "query:[%s]", trimQuery)
+		return nil, nil, errlist.ErrG.NewError(loopRet.Err(), "query:[%s]", trimQuery)
 	}
 
-	buf := make([][]any, 1)
+	buf := make([][]any, 0, 1)
 	if err := r.parseOutputAny(loopRet.Val(), 0, buf); err != nil {
-		return nil, errlist.ErrG.NewError(err, "query:[%s]", trimQuery)
+		return nil, nil, errlist.ErrG.NewError(err, "query:[%s]", trimQuery)
 	}
 
-	return buf, nil
+	name = make([]string, len(buf))
+
+	for idx := range buf {
+		name[idx] = strconv.Itoa(idx +1)
+	}
+
+	return buf, name, nil
 }
 
 func (r *redisConnPool) parseOutputAny(val interface{}, idx int, m [][]any) error {

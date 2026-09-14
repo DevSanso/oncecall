@@ -2,7 +2,6 @@ package conn
 
 import (
 	"context"
-	"oncecall/cfg"
 	"oncecall/errlist"
 	"oncecall/utils"
 	"strconv"
@@ -14,14 +13,14 @@ import (
 
 type CassandraConn struct {
 	cluster *gocql.ClusterConfig
-	conf    *cfg.ConnConfig
+	conf    *ConnConfig
 
 	isClose    atomic.Bool
 	baseCtx    context.Context
 	baseCancel context.CancelFunc
 }
 
-func newCassandraConnPool(info *cfg.ConnConfig) (ConnPoolInterface, error) {
+func newCassandraConnPool(info *ConnConfig) (ConnPoolInterface, error) {
 	hosts := strings.Split(info.Server, ",")
 	port := strings.Split(info.Server, ":")
 	if len(hosts) <= 0 || len(port) < 2 {
@@ -113,17 +112,17 @@ func (c *CassandraConn) makeRowBuffer(cols []gocql.ColumnInfo) (data []any, err 
 	return
 }
 
-func (c *CassandraConn) RunQuery(ctx context.Context, arg *Args) ([][]any, error) {
+func (c *CassandraConn) RunQuery(ctx context.Context, arg *Args) (rows [][]any, name []string, err error) {
 	if c.isClose.Load() {
-		return nil, errlist.ErrG.NewError(nil, "connection is closed")
+		return nil, nil, errlist.ErrG.NewError(nil, "connection is closed")
 	}
 	if arg.IsTransaction {
-		return nil, errlist.ErrG.NewError(nil, "exec sql transcation not support, name:%s", c.conf.Name)
+		return nil, nil, errlist.ErrG.NewError(nil, "exec sql transcation not support, name:%s", c.conf.Name)
 	}
 
 	sess, sessErr := c.cluster.CreateSession()
 	if sessErr != nil {
-		return nil, errlist.ErrG.NewError(sessErr, "connect failed : %s", c.conf.Name)
+		return nil, nil, errlist.ErrG.NewError(sessErr, "connect failed : %s", c.conf.Name)
 	}
 	defer sess.Close()
 
@@ -141,10 +140,15 @@ func (c *CassandraConn) RunQuery(ctx context.Context, arg *Args) ([][]any, error
 
 	cols := iter.Columns()
 	var valuePtr []any = make([]any, len(cols))
+	name = make([]string, len(cols))
+
+	for idx := range cols {
+		name[idx] = cols[idx].Name
+	}
 
 	value, valueErr := c.makeRowBuffer(cols)
 	if valueErr != nil {
-		return nil, errlist.ErrG.NewError(valueErr, "query cols get buffer failed : %s", c.conf.Name)
+		return nil, nil, errlist.ErrG.NewError(valueErr, "query cols get buffer failed : %s", c.conf.Name)
 	}
 
 	for idx := range value {
@@ -157,7 +161,7 @@ func (c *CassandraConn) RunQuery(ctx context.Context, arg *Args) ([][]any, error
 
 		value, valueErr = c.makeRowBuffer(cols)
 		if valueErr != nil {
-			return nil, errlist.ErrG.NewError(valueErr, "query cols get buffer failed : %s", c.conf.Name)
+			return nil, nil, errlist.ErrG.NewError(valueErr, "query cols get buffer failed : %s", c.conf.Name)
 		}
 
 		for idx := range value {
@@ -165,10 +169,10 @@ func (c *CassandraConn) RunQuery(ctx context.Context, arg *Args) ([][]any, error
 		}
 	}
 
-	return retArr, nil
+	return retArr, name, nil
 }
 
-func (c *CassandraConn) GetConfig() cfg.ConnConfig {
+func (c *CassandraConn) GetConfig() ConnConfig {
 	return *c.conf
 }
 
