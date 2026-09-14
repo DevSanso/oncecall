@@ -19,8 +19,9 @@ type execPrivateState struct {
 	ScriptRaw     [][]any
 	ScriptLinkRaw [][]any
 
-	//dbname, script
+	//Ident, script
 	newRunQ         []generic.Pair[string, string]
+	StopRunQ        []generic.Pair[string, string]
 	threadStopFnMap *generic.GenericSyncMap[generic.Pair[string, string], context.CancelFunc]
 }
 

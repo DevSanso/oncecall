@@ -93,9 +93,11 @@ func (e *Executor) delNotUseConnPool() error {
 	}
 
 	deleted := make([]string, 0, 3)
-	e.shared.pMap.Range(func(key string, value conn.ConnPoolInterface) bool {
+
+	e.shared.pMap.Range(func(key string, _ conn.ConnPoolInterface) bool {
 		if !slices.Contains(identifiers, key) {
 			deleted = append(deleted, key)
+
 		}
 
 		return true
@@ -197,7 +199,7 @@ func (e *Executor) loadConnPool() error {
 	return nil
 }
 
-func (e *Executor) loadScript() error {
+func (e *Executor) loadAndDelNotUseScript() error {
 	var convOk bool = true
 	var name string
 	var data string
@@ -224,6 +226,7 @@ func (e *Executor) loadScript() error {
 			if bytes.Equal(hashSum[:], script.First[:]) {
 				continue
 			}
+
 			e.shared.scriptMap.Delete(name)
 		}
 
@@ -235,13 +238,15 @@ func (e *Executor) loadScript() error {
 
 func (e *Executor) LoadScriptLink() error {
 	var convOk bool = true
-	var dbName string
+	var ident string
 	var scriptName string
 
 	e.private.newRunQ = make([]generic.Pair[string, string], len(e.private.ScriptLinkRaw))
+	e.private.StopRunQ = make([]generic.Pair[string, string], len(e.private.ScriptLinkRaw))
+
 	for idx := range e.private.ScriptLinkRaw {
 		bit := false
-		dbName, bit = e.private.DbListRaw[idx][0].(string)
+		ident, bit = e.private.DbListRaw[idx][0].(string)
 		convOk = convOk && bit
 		scriptName, bit = e.private.DbListRaw[idx][1].(string)
 		convOk = convOk && bit
@@ -250,13 +255,21 @@ func (e *Executor) LoadScriptLink() error {
 			return errlist.ErrG.NewError(nil, "convert failed data %s", e.manageConf.Cmd.Db.Query.DbScriptLink)
 		}
 
-		e.private.newRunQ[idx] = generic.Pair[string,string]{First: dbName, Second: scriptName}
+		e.private.newRunQ[idx] = generic.Pair[string,string]{First: ident, Second: scriptName}
 	}
+
+	e.private.threadStopFnMap.Range(func(key generic.Pair[string, string], value context.CancelFunc) bool {
+		if slices.Index(e.private.newRunQ, key) == -1 {
+			e.private.StopRunQ = append(e.private.StopRunQ, key)
+		}
+		return true
+	})
+
 	return nil
 }
 
 func (e *Executor) sharedUpdate() error {
-	if err := e.loadScript(); err != nil {
+	if err := e.loadAndDelNotUseScript(); err != nil {
 		return errlist.ErrG.NewError(err, "")
 	}
 
@@ -304,6 +317,15 @@ func (e *Executor) DisPatch() error {
 	e.private.logicMutex.Lock()
 	defer e.private.logicMutex.Unlock()
 
+	for idx := range e.private.StopRunQ {
+		stopFn, stopOk := e.private.threadStopFnMap.Load(e.private.StopRunQ[idx])
+		if stopOk {
+			return errlist.ErrG.NewError(nil, "stop function not exists: %s", stopFn)
+		}
+		stopFn()
+		e.private.threadStopFnMap.Delete(e.private.StopRunQ[idx])
+	}
+
 	for idx := range e.private.newRunQ {
 		run, notExist := e.shared.isRunningThreadMap.Load(e.private.newRunQ[idx])
 		if !notExist && run {continue}
@@ -313,147 +335,15 @@ func (e *Executor) DisPatch() error {
 		e.private.threadStopFnMap.Store(e.private.newRunQ[idx], thCancelFn)
 
 		go func(k generic.Pair[string, string], state *execSharedState, ctx context.Context, cancelFn context.CancelFunc) {
-			th := newScriptThread()
-			if err := th.Run(); err != nil {
+			th := newScriptThread(k, state)
+			if err := th.Run(ctx); err != nil {
 				zap.L().Error("executor.th", zap.Error(err))
 			}
-
 			cancelFn()
-			state.isRunningThreadMap.Store(k, false)
+			state.isRunningThreadMap.Delete(k)
 		}(e.private.newRunQ[idx], e.shared, thCtx, thCancelFn)
 
 	}
 
 	return nil
 }
-
-/*
-func NewSelfExecutor(conf *cfg.Config, manageConf *cfg.ProcessConfig, scripts []cfg.ScriptSelfConfig) *SelfExecutor {
-	obj := &SelfExecutor{
-		conf:       conf,
-		scripts:    scripts,
-		manageConf: manageConf,
-		state:      newExecState(script.NewSelfScript),
-		jobPool: generic.NewGenericSyncPool(func() *selfJobImpl {
-			return NewJob(manageConf)
-		}),
-	}
-	return obj
-}
-
-func (e *SelfExecutor) setDbConn(manageP conn.ConnPoolInterface, ctx context.Context) ([]int, error) {
-	var search *manage.DBSearch
-
-	search = manage.NewDBSearch(manageP, e.manageConf.Cmd.Db.Query.DbList, e.manageConf.Cmd.Db.Query.DbOption)
-
-	var ret = make([]int, 0, 10)
-
-	if logmsDBInfo, selectErr := search.GetDb(ctx); selectErr != nil {
-		return nil, selectErr
-	} else {
-		for idx := range logmsDBInfo {
-			p, pErr := conn.GetConnPool(logmsDBInfo[idx].ConvertConnConfig())
-			if pErr != nil {
-				return nil, pErr
-			}
-			e.state.pMap.Store(generic.Pair[int, bool]{First: logmsDBInfo[idx].Identifier, Second: false}, p)
-			ret = append(ret, logmsDBInfo[idx].Identifier)
-		}
-	}
-
-	return ret, nil
-}
-
-func (e *SelfExecutor) Close() error {
-	if e.execSelfCtxCancelFn == nil {
-		return errlist.ErrG.NewError(nil, "not setting ctx cancel fn")
-	}
-	e.execSelfCtxCancelFn()
-
-	e.state.pMap.Range(func(key generic.Pair[int, bool], value conn.ConnPoolInterface) bool {
-		value.Close()
-		return true
-	})
-
-	return nil
-}
-
-func (e *SelfExecutor) Run(baseCtx context.Context) error {
-	var ctx context.Context
-
-	ctx, cancel := context.WithCancel(baseCtx)
-	e.state.ctx = ctx
-	e.execSelfCtxCancelFn = cancel
-	defer e.Close()
-
-	manageP, manageErr := conn.GetConnPool(&e.conf.ManageDB)
-	if manageErr != nil {
-		return manageErr
-	}
-	e.state.pMap.Store(generic.Pair[int, bool]{First: define.ConnMapManageIdx, Second: false}, manageP)
-
-	if e.conf.RealTimetDB != nil {
-		realP, realErr := conn.GetConnPool(e.conf.RealTimetDB)
-		if realErr != nil {
-			return realErr
-		}
-		e.state.pMap.Store(generic.Pair[int, bool]{First: define.ConnMapRealTimeIdx, Second: false}, realP)
-	}
-
-	if e.conf.CollectDB != nil {
-		collectP, collectErr := conn.GetConnPool(e.conf.CollectDB)
-		if collectErr != nil {
-			return collectErr
-		}
-		e.state.pMap.Store(generic.Pair[int, bool]{First: define.ConnMapCollectIdx, Second: false}, collectP)
-	}
-
-	var logmsNoArr []int = nil
-
-	if list, setErr := e.setDbConn(manageP, ctx); setErr != nil {
-		return setErr
-	} else {
-		logmsNoArr = list
-	}
-
-	for {
-		select {
-		case <-ctx.Done():
-			zap.L().Info("stop executor")
-			break
-		default:
-		}
-
-		for idx := range e.scripts {
-			if e.scripts[idx].IsEanble == false {
-				continue
-			}
-
-			if isRun, exists := e.state.isRunFlagMap.Load(e.scripts[idx].Name); exists && isRun {
-				continue
-			} else if !exists {
-				e.state.isRunFlagMap.Store(e.scripts[idx].Name, true)
-				zap.L().Debug("new job", zap.String("name", e.scripts[idx].Name))
-			} else {
-				e.state.isRunFlagMap.Store(e.scripts[idx].Name, true)
-				zap.L().Debug("start set job", zap.String("name", e.scripts[idx].Name))
-			}
-
-			execJob := e.jobPool.Get()
-			go func(c *cfg.ScriptSelfConfig, connKey []int, ctx context.Context, eState *selfExecState) {
-				zap.L().Debug("start job", zap.String("name", e.scripts[idx].Name), zap.Int("idCnt", len(connKey)))
-
-				execErr := execJob.Run(c, connKey, ctx, eState)
-				if execErr != nil {
-					zap.L().Error("execJob", zap.String("name", c.Name), zap.Error(execErr))
-				}
-				e.state.isRunFlagMap.Store(e.scripts[idx].Name, false)
-
-				zap.L().Debug("stop job", zap.String("name", e.scripts[idx].Name))
-			}(&e.scripts[idx], logmsNoArr, ctx, e.state)
-		}
-
-		time.Sleep(10 * time.Second)
-	}
-}
-*/
