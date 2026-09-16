@@ -7,7 +7,7 @@ type ConnConfig = conn.ConnConfig
 type ScriptQueryPlan struct {
 	Bind map[int]struct {
 		Dynamic *struct {
-			PlanIdx string `toml:"plan_idx"`
+			PlanIdx int    `toml:"plan_idx"`
 			Col     string `toml:"col"`
 		} `toml:"dynamic"`
 
@@ -31,19 +31,31 @@ type ScriptQueryPlan struct {
 }
 
 type ScriptConfig struct {
-	Name string `toml:"name"`
+	Ident string `toml:"identifier"`
 
 	Interval struct {
 		Sec int `toml:"sec"`
 	} `toml:"interval"`
 
-	//key : dbname
+	//key : identifier
 	Init map[string]struct {
 		Query        []string `toml:"query"`
 		TriggerQuery string   `toml:"trigger"`
 	} `toml:"init"`
 
-	Plan map[string]ScriptQueryPlan `toml:"plan"`
+	Option *struct {
+		PlanRowBufCap      int `toml:"plan_buf_cap"`
+		PlanColsBufAlloc   int `toml:"plan_cols_buf_alloc"`
+		PlanRowBufIdleTime int `toml:"plan_buf_idle_time_sec"`
+	} `toml:"option"`
+
+	Plans struct {
+		Read []struct {
+			ReadIdent string          `toml:"identifier"`
+			SubPlan   ScriptQueryPlan `toml:"sub_plan"`
+		} `toml:"read"`
+		Sync ScriptQueryPlan `toml:"sync"`
+	} `toml:"plan"`
 }
 
 type ProcessConfig struct {
