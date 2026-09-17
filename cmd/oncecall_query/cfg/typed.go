@@ -4,13 +4,42 @@ import "oncecall/conn"
 
 type ConnConfig = conn.ConnConfig
 
-type ScriptQueryPlan struct {
+type ScriptQuerySyncPlan struct {
+	Bind *struct {
+		Size struct {
+			Col int `toml:"col"`
+			Row int `toml:"row"`
+		} `toml:"size"`
+
+		//key: cols pos
+		Pos map[int]struct {
+			Dynamic *struct {
+				PlanIdx         int    `toml:"plan_idx"`
+				Col             string `toml:"col"`
+				StartSyncOffset int    `toml:"start_sync_offset"`
+			} `toml:"dynamic"`
+
+			Static *string `toml:"static"`
+		}
+	} `toml:"bind"`
+
+	Vm *struct {
+		Lang   string `toml:"lang"`
+		Script string `toml:"script"`
+	} `toml:"vm"`
+
+	Tran  bool   `toml:"is_tran"`
+	Query string `toml:"query"`
+}
+
+type ScriptQueryReadPlan struct {
+	//key: cols pos
 	Bind map[int]struct {
 		Dynamic *struct {
 			PlanIdx int    `toml:"plan_idx"`
 			Col     string `toml:"col"`
+			RowIdx  int    `toml:"row"`
 		} `toml:"dynamic"`
-
 		Static *string `toml:"static"`
 	} `toml:"bind"`
 
@@ -23,10 +52,7 @@ type ScriptQueryPlan struct {
 	Query string `toml:"query"`
 
 	IsNext *struct {
-		Query struct {
-			DB    string `toml:"db"`
-			Query string `toml:"query"`
-		}
+		Query string `toml:"query"`
 	} `toml:"is_next"`
 }
 
@@ -51,10 +77,10 @@ type ScriptConfig struct {
 
 	Plans struct {
 		Read []struct {
-			ReadIdent string          `toml:"identifier"`
-			SubPlan   ScriptQueryPlan `toml:"sub_plan"`
+			ReadIdent string              `toml:"identifier"`
+			ReadPlan  ScriptQueryReadPlan `toml:"read_plan"`
 		} `toml:"read"`
-		Sync ScriptQueryPlan `toml:"sync"`
+		Sync ScriptQuerySyncPlan `toml:"sync"`
 	} `toml:"plan"`
 }
 

@@ -15,11 +15,20 @@ import (
 )
 
 type Executor struct {
-	execSelfCtxCancelFn context.CancelFunc
 	manageConf          *cfg.ProcessConfig
 
 	private execPrivateState
 	shared  *execSharedState
+}
+
+func NewExecutor(ctx context.Context, manageConf *cfg.ProcessConfig) *Executor {
+	e := &Executor{
+		manageConf: manageConf,
+		shared:     newExecSharedState(),
+		private: execPrivateState{},
+	}
+	e.shared.executorContext = ctx
+	return e
 }
 
 func (e *Executor) Fetch(timeoutMs int) error {
@@ -31,7 +40,7 @@ func (e *Executor) Fetch(timeoutMs int) error {
 	e.private.ScriptLinkRaw = nil
 	e.private.ScriptRaw = nil
 
-	timeCtx, cancelFn := context.WithTimeout(e.shared.ctx, time.Duration(timeoutMs)*time.Millisecond)
+	timeCtx, cancelFn := context.WithTimeout(e.shared.executorContext, time.Duration(timeoutMs)*time.Millisecond)
 	defer cancelFn()
 
 	listData, _, listErr := e.private.manage.RunQuery(timeCtx, &conn.Args{
@@ -236,7 +245,7 @@ func (e *Executor) loadAndDelNotUseScript() error {
 	return nil
 }
 
-func (e *Executor) LoadScriptLink() error {
+func (e *Executor) loadScriptLink() error {
 	var convOk bool = true
 	var ident string
 	var scriptName string
@@ -285,7 +294,7 @@ func (e *Executor) sharedUpdate() error {
 }
 
 func (e *Executor) privateUpdate() error {
-	if err := e.LoadScriptLink(); err != nil {
+	if err := e.loadScriptLink(); err != nil {
 		return errlist.ErrG.NewError(err, "")
 	}
 
@@ -329,7 +338,7 @@ func (e *Executor) DisPatch() error {
 	for idx := range e.private.newRunQ {
 		run, notExist := e.shared.isRunningThreadMap.Load(e.private.newRunQ[idx])
 		if !notExist && run {continue}
-		thCtx, thCancelFn := context.WithCancel(e.shared.ctx)
+		thCtx, thCancelFn := context.WithCancel(e.shared.executorContext)
 
 		e.shared.isRunningThreadMap.Store(e.private.newRunQ[idx], true)
 		e.private.threadStopFnMap.Store(e.private.newRunQ[idx], thCancelFn)

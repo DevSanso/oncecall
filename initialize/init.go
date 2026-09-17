@@ -181,6 +181,5 @@ func InitProc() (deferFn func(), err error) {
 	}
 	setPerf()
 	runtime.GOMAXPROCS(*cpu)
-	err = errlist.Init()
 	return
 }

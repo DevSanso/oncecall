@@ -51,7 +51,6 @@ var (
 	ErrG = errorTypeMap{m: map[string]string{
 		"cfg":         "Config",
 		"conn":        "Connection",
-		"manage":      "Connection",
 		"cmd":         "Proc",
 		"initialize":  "ProcInit",
 		"vm":          "Interpreter",
@@ -61,17 +60,15 @@ var (
 	}, once: sync.Once{}, projectRoot: ""}
 )
 
-func Init() (err error) {
+func init() {
 	_, file, _, ok := runtime.Caller(0)
 	if !ok {
-		err = errors.New("failed to get caller, err filename")
-		return
+		err := errors.New("failed to get caller, err filename")
+		panic(err)
 	}
 
 	ErrG.once.Do(func() {
 		p := filepath.FromSlash("/errlist/match.go")
 		ErrG.projectRoot = strings.Replace(file, p, "", 1)
 	})
-
-	return
 }

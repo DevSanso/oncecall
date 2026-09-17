@@ -5,45 +5,55 @@ import (
 	"oncecall/cmd/oncecall_query/cfg"
 	"oncecall/conn"
 	"oncecall/errlist"
+	"oncecall/errlist/prefix"
 	"oncecall/utils/generic"
 	"os"
 	"time"
 )
 
 type planParamBuffer struct {
-	m      []map[string][]struct{data any; seq int64}
-	rowCap int
+	m []map[string][]struct {
+		data any
+		seq  int64
+	}
+	rowCap     int
 	rowIdleSec int
 }
 
 func newPlanParamBuffer(count int, mapInitSize int, rowInitCap int, rowIdleSec int) planParamBuffer {
-	obj := make([]map[string][]struct{data any; seq int64}, count)
+	obj := make([]map[string][]struct {
+		data any
+		seq  int64
+	}, count)
 	for idx := range obj {
-		obj[idx] = make(map[string][]struct{data any; seq int64}, mapInitSize)
+		obj[idx] = make(map[string][]struct {
+			data any
+			seq  int64
+		}, mapInitSize)
 	}
 
 	return planParamBuffer{
-		m:      obj,
-		rowCap: rowInitCap,
+		m:          obj,
+		rowCap:     rowInitCap,
 		rowIdleSec: rowIdleSec,
 	}
 }
 
-func (ppb *planParamBuffer) Get(idx int, col string, row int, seq int64) any {
+func (ppb *planParamBuffer) Get(idx int, col string, row int, seq int64) (any, error) {
 	if len(ppb.m) <= idx {
-		return nil
+		return nil, nil
 	}
 
 	planMap := ppb.m[idx]
 	if len(planMap[col]) <= row {
-		return nil
+		return nil, errlist.ErrG.NewError(prefix.OutLenError, "plan len :%d, search idx : %d", len(planMap[col]), row)
 	}
 
 	if planMap[col][row].seq > seq {
-		return nil
+		return nil, nil
 	}
 
-	return planMap[col][row].data
+	return planMap[col][row].data, nil
 }
 
 func (ppb *planParamBuffer) Set(idx int, col string, row int, data any, seq int64) error {
@@ -54,15 +64,23 @@ func (ppb *planParamBuffer) Set(idx int, col string, row int, data any, seq int6
 	planMap := ppb.m[idx]
 
 	if len(planMap[col]) <= row {
-		temp := make([]struct{data any; seq int64}, len(planMap[col]) + ppb.rowCap)
+		temp := make([]struct {
+			data any
+			seq  int64
+		}, len(planMap[col])+ppb.rowCap)
 		copy(temp, planMap[col])
 		planMap[col] = temp
 	} else {
 		idle := time.Duration(ppb.rowIdleSec)
-		if idle <= 0 { idle = 60 }
+		if idle <= 0 {
+			idle = 60
+		}
 
-		if seq - planMap[col][len(planMap[col])-1].seq > int64(time.Second * idle) {
-			temp := make([]struct{data any; seq int64}, row + ppb.rowCap)
+		if seq-planMap[col][len(planMap[col])-1].seq > int64(time.Second*idle) {
+			temp := make([]struct {
+				data any
+				seq  int64
+			}, row+ppb.rowCap)
 			copy(temp, planMap[col])
 			planMap[col] = temp
 		}
@@ -82,14 +100,17 @@ type scriptThread struct {
 }
 
 func newScriptThread(key generic.Pair[string, string], state *execSharedState) *scriptThread {
-
+	return &scriptThread{
+		state: state,
+		key:   key,
+	}
 }
 
 func (s *scriptThread) init(ctx context.Context, cfg *cfg.ScriptConfig) error {
 	for k, val := range cfg.Init {
 		initDb, exists := s.state.pMap.Load(k)
 		if !exists {
-			return errlist.ErrG.NewError(nil, "init failed, not exists db[%s] target[%v]", k, s.key)
+			return errlist.ErrG.NewError(prefix.NotExistsError, "init failed, not exists db[%s] target[%v]", k, s.key)
 		}
 
 		data, _, triggerErr := initDb.RunQuery(ctx, &conn.Args{
@@ -122,24 +143,83 @@ func (s *scriptThread) init(ctx context.Context, cfg *cfg.ScriptConfig) error {
 	return nil
 }
 
-func (s *scriptThread) makeParamFromPlanBindCfg(p *cfg.ScriptQueryPlan, buf *planParamBuffer, seq int64) ([][]any, error) {
-	var maxK int = 0
-	var maxPlanIdx int = 0
+func (s *scriptThread) makeParamFromSyncPlanBindCfg(p *cfg.ScriptQuerySyncPlan, buf *planParamBuffer, seq int64) ([][]any, error) {
+	if p.Bind == nil {
+		return nil, nil
+	}
 
-	for k, val := range p.Bind {
-		maxK = max(maxK, k)
+	param := make([][]any, p.Bind.Size.Row)
+	for idx := 0; idx < p.Bind.Size.Row; idx += 1 {
+		param[idx] = make([]any, p.Bind.Size.Col)
+	}
 
-		if val.Dynamic != nil {
-			maxPlanIdx = max(maxPlanIdx, val.Dynamic.PlanIdx)
+	for k, val := range p.Bind.Pos {
+		fixIdx := k - 1
+		if fixIdx < 0 {
+			return nil, errlist.ErrG.NewError(prefix.SentinelCatchError, "")
+		}
+
+		if fixIdx >= p.Bind.Size.Col {
+			return nil, errlist.ErrG.NewError(prefix.OutLenError, "")
+		}
+
+		if val.Static != nil {
+			for idx := 0; idx < p.Bind.Size.Row; idx += 1 {
+				param[idx][fixIdx] = *val.Static
+			}
+		} else if val.Dynamic != nil {
+			for idx := 0; idx < p.Bind.Size.Row; idx += 1 {
+				if idx < val.Dynamic.StartSyncOffset {
+					continue
+				}
+				data, getErr := buf.Get(val.Dynamic.PlanIdx, val.Dynamic.Col, idx, seq)
+				if getErr != nil {
+					return nil, errlist.ErrG.NewError(getErr, "get dynamic plan failed, idx[%d]", idx)
+				}
+				param[idx][fixIdx] = data
+			}
+
+		} else {
+			return nil, errlist.ErrG.NewError(prefix.SentinelCatchError, "static and dynamic are nil [idx:%d]", k)
 		}
 	}
 
+	return param, nil
+}
 
-	for k, val := range p.Bind {
+func (s *scriptThread) makeParamFromReadPlanBindCfg(p *cfg.ScriptQueryReadPlan, buf *planParamBuffer, seq int64) ([][]any, error) {
+	var maxK = 0
 
+	if p.Bind == nil {
+		return [][]any{{}}, nil
 	}
 
+	for k := range p.Bind {
+		maxK = max(maxK, k)
+	}
 
+	var data = make([]any, maxK)
+
+	for k, val := range p.Bind {
+		fixIdx := k - 1
+		if fixIdx < 0 {
+			return nil, errlist.ErrG.NewError(prefix.SentinelCatchError, "")
+		}
+
+		if val.Static != nil {
+			data[k] = *val.Static
+		} else if val.Dynamic != nil {
+			var err error
+			data[k], err = buf.Get(val.Dynamic.PlanIdx, val.Dynamic.Col, val.Dynamic.RowIdx, seq)
+			if err != nil {
+				return nil, errlist.ErrG.NewError(err, "")
+			}
+		} else {
+			data[k] = nil
+		}
+	}
+
+	return [][]any{data}, nil
 }
 
 func (*scriptThread) allocCurrentData(idx int, rows [][]any, cols []string, buf *planParamBuffer, seq int64) error {
@@ -148,7 +228,7 @@ func (*scriptThread) allocCurrentData(idx int, rows [][]any, cols []string, buf 
 	}
 
 	if len(rows[0]) != len(cols) {
-		return errlist.ErrG.NewError(nil, "not matching %d != %d", len(rows[0]), len(cols))
+		return errlist.ErrG.NewError(prefix.NotMatchingError, "not matching %d != %d", len(rows[0]), len(cols))
 	}
 
 	for rowIdx, row := range rows {
@@ -162,7 +242,7 @@ func (*scriptThread) allocCurrentData(idx int, rows [][]any, cols []string, buf 
 	return nil
 }
 
-func (s *scriptThread) connRun(ctx context.Context, p conn.ConnPoolInterface, scriptPlan *cfg.ScriptQueryPlan, param [][]any) ([][]any, []string, error) {
+func (s *scriptThread) connRun(ctx context.Context, p conn.ConnPoolInterface, scriptPlan *cfg.ScriptQueryReadPlan, param [][]any) ([][]any, []string, error) {
 	var data [][]any
 	var dCols []string
 
@@ -185,8 +265,8 @@ func (s *scriptThread) connRun(ctx context.Context, p conn.ConnPoolInterface, sc
 func (s *scriptThread) Run(ctx context.Context) error {
 	db, dbOk := s.state.pMap.Load(s.key.First)
 	scriptPair, scriptOk := s.state.scriptMap.Load(s.key.Second)
-	
-	if !( dbOk && scriptOk) {
+
+	if !(dbOk && scriptOk) {
 		return errlist.ErrG.NewError(nil, "can't load conn or script [%t:%t]", dbOk, scriptOk)
 	}
 
@@ -200,17 +280,19 @@ func (s *scriptThread) Run(ctx context.Context) error {
 	{
 		var colsSize = 10
 		var rowCap = 100
+		var idleRowMem = 60
 
 		if opt := script.Option; opt != nil {
 			colsSize = opt.PlanColsBufAlloc
 			rowCap = opt.PlanRowBufCap
+			idleRowMem = opt.PlanRowBufIdleTime
 		}
 
-		planParamBuf = newPlanParamBuffer(len(script.Plans.Read), colsSize, rowCap)
+		planParamBuf = newPlanParamBuffer(len(script.Plans.Read), colsSize, rowCap, idleRowMem)
 	}
 	vmCacheMap := generic.NewGenericSyncMap[string, any]()
 
-	RunLoop:
+RunLoop:
 	for {
 		select {
 		case <-ctx.Done():
@@ -220,14 +302,20 @@ func (s *scriptThread) Run(ctx context.Context) error {
 		seq := time.Now().UnixMicro()
 
 		for planIdx := range script.Plans.Read {
+			select {
+			case <-ctx.Done():
+				break RunLoop
+			default:
+			}
+
 			currentPlan := &script.Plans.Read[planIdx]
 
-			data, paramBufErr := s.makeParamFromPlanBindCfg(&currentPlan.SubPlan, &planParamBuf, seq)
+			data, paramBufErr := s.makeParamFromReadPlanBindCfg(&currentPlan.ReadPlan, &planParamBuf, seq)
 			if paramBufErr != nil {
 				return errlist.ErrG.NewError(paramBufErr, "paramBuf make failed [idx:%d]", planIdx)
 			}
 
-			if vmCfg := currentPlan.SubPlan.Vm; vmCfg != nil {
+			if vmCfg := currentPlan.ReadPlan.Vm; vmCfg != nil {
 				beforeData := data
 				langVm := s.state.vmP.Get()
 				var vmErr error
@@ -243,7 +331,7 @@ func (s *scriptThread) Run(ctx context.Context) error {
 				return errlist.ErrG.NewError(nil, "get pool failed [plan:%v, idx:%d, p:%s]", s.key, planIdx, currentPlan.ReadIdent)
 			}
 
-			currentData, currentCols, runErr := s.connRun(ctx, currentP, &currentPlan.SubPlan, data)
+			currentData, currentCols, runErr := s.connRun(ctx, currentP, &currentPlan.ReadPlan, data)
 			if runErr != nil {
 				return errlist.ErrG.NewError(runErr, "get pool run failed [plan:%v, idx:%d, p:%s]", s.key, planIdx, currentPlan.ReadIdent)
 			}
@@ -253,7 +341,7 @@ func (s *scriptThread) Run(ctx context.Context) error {
 			}
 		}
 
-		data, paramBufErr := s.makeParamFromPlanBindCfg(&script.Plans.Sync, &planParamBuf, seq)
+		data, paramBufErr := s.makeParamFromSyncPlanBindCfg(&script.Plans.Sync, &planParamBuf, seq)
 		if paramBufErr != nil {
 			return errlist.ErrG.NewError(paramBufErr, "paramBuf make failed sync")
 		}
@@ -270,8 +358,8 @@ func (s *scriptThread) Run(ctx context.Context) error {
 		}
 
 		if syncErr := db.RunExecute(ctx, &conn.Args{
-			Query: script.Plans.Sync.Query,
-			Args:  data,
+			Query:         script.Plans.Sync.Query,
+			Args:          data,
 			IsTransaction: script.Plans.Sync.Tran,
 		}); syncErr != nil {
 			return errlist.ErrG.NewError(syncErr, "execute sync failed")

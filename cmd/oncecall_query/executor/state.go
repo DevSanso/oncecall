@@ -26,10 +26,10 @@ type execPrivateState struct {
 }
 
 type execSharedState struct {
-	ctx       context.Context
-	pMap      *generic.GenericSyncMap[string, conn.ConnPoolInterface]
-	scriptMap *generic.GenericSyncMap[string, generic.Pair[[16]byte, *cfg.ScriptConfig]]
-	vmP       *generic.GenericSyncPool[vm.Vm]
+	executorContext context.Context
+	pMap            *generic.GenericSyncMap[string, conn.ConnPoolInterface]
+	scriptMap       *generic.GenericSyncMap[string, generic.Pair[[16]byte, *cfg.ScriptConfig]]
+	vmP             *generic.GenericSyncPool[vm.Vm]
 
 	isRunningThreadMap *generic.GenericSyncMap[generic.Pair[string, string], bool]
 }
