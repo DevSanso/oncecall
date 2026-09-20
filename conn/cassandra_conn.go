@@ -11,7 +11,7 @@ import (
 	gocql "github.com/apache/cassandra-gocql-driver/v2"
 )
 
-type CassandraConn struct {
+type cassandraConn struct {
 	cluster *gocql.ClusterConfig
 	conf    *ConnConfig
 
@@ -43,7 +43,7 @@ func newCassandraConnPool(info *ConnConfig) (ConnPoolInterface, error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	return &CassandraConn{
+	return &cassandraConn{
 		cluster:    cluster,
 		conf:       info,
 		isClose:    atomic.Bool{},
@@ -52,7 +52,7 @@ func newCassandraConnPool(info *ConnConfig) (ConnPoolInterface, error) {
 	}, nil
 }
 
-func (c *CassandraConn) RunExecute(ctx context.Context, arg *Args) error {
+func (c *cassandraConn) RunExecute(ctx context.Context, arg *Args) error {
 	if c.isClose.Load() {
 		return errlist.ErrG.NewError(nil, "connection is closed")
 	}
@@ -89,7 +89,7 @@ func (c *CassandraConn) RunExecute(ctx context.Context, arg *Args) error {
 	}
 	return nil
 }
-func (c *CassandraConn) makeRowBuffer(cols []gocql.ColumnInfo) (data []any, err error) {
+func (c *cassandraConn) makeRowBuffer(cols []gocql.ColumnInfo) (data []any, err error) {
 	data = make([]any, len(cols))
 
 	for i, col := range cols {
@@ -112,7 +112,7 @@ func (c *CassandraConn) makeRowBuffer(cols []gocql.ColumnInfo) (data []any, err 
 	return
 }
 
-func (c *CassandraConn) RunQuery(ctx context.Context, arg *Args) (rows [][]any, name []string, err error) {
+func (c *cassandraConn) RunQuery(ctx context.Context, arg *Args) (rows [][]any, name []string, err error) {
 	if c.isClose.Load() {
 		return nil, nil, errlist.ErrG.NewError(nil, "connection is closed")
 	}
@@ -172,15 +172,15 @@ func (c *CassandraConn) RunQuery(ctx context.Context, arg *Args) (rows [][]any, 
 	return retArr, name, nil
 }
 
-func (c *CassandraConn) GetConfig() ConnConfig {
+func (c *cassandraConn) GetConfig() ConnConfig {
 	return *c.conf
 }
 
-func (c *CassandraConn) Close() error {
+func (c *cassandraConn) Close() error {
 	c.isClose.Store(true)
 	c.baseCancel()
 
 	return nil
 }
 
-var _ ConnPoolInterface = (*CassandraConn)(nil)
+var _ ConnPoolInterface = (*cassandraConn)(nil)

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -23,10 +22,14 @@ func (m *errorTypeMap) getPackagePath() (funcName, fileAndLine, packagePath stri
 	}
 
 	funcName = runtime.FuncForPC(pc).Name()
+	if os.PathSeparator != '/' {
+		file = strings.ReplaceAll(file, string(os.PathSeparator), "/")
+	}
+
 	ptr := file[len(m.projectRoot):]
 	fileAndLine = fmt.Sprintf("%s:%d", ptr, line)
 
-	sp := strings.SplitN(ptr, string(os.PathSeparator), 3)
+	sp := strings.SplitN(ptr, "/", 3)
 
 	if len(sp) < 2 {
 		packagePath = "__unknown__"
@@ -51,7 +54,7 @@ var (
 	ErrG = errorTypeMap{m: map[string]string{
 		"cfg":         "Config",
 		"conn":        "Connection",
-		"cmd":         "Proc",
+		"cmd":         "App",
 		"initialize":  "ProcInit",
 		"vm":          "Interpreter",
 		"utils":       "PackageUtils",
@@ -68,7 +71,10 @@ func init() {
 	}
 
 	ErrG.once.Do(func() {
-		p := filepath.FromSlash("/errlist/match.go")
+		p := "/errlist/match.go"
+		if os.PathSeparator != '/' {
+			file = strings.ReplaceAll(file, string(os.PathSeparator), "/")
+		}
 		ErrG.projectRoot = strings.Replace(file, p, "", 1)
 	})
 }

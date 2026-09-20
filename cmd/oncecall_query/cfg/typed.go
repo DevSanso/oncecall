@@ -5,48 +5,47 @@ import "oncecall/conn"
 type ConnConfig = conn.ConnConfig
 
 type ScriptQuerySyncPlan struct {
-	Bind *struct {
-		Size struct {
-			Col int `toml:"col"`
-			Row int `toml:"row"`
-		} `toml:"size"`
+	Bind struct {
+		Fix *struct {
+			//key: cols pos
+			Pos map[string]struct {
+				Dynamic *struct {
+					PlanIdx         int    `toml:"plan_idx"`
+					Col             string `toml:"col"`
+					StartSyncOffset int    `toml:"start_sync_offset"`
+				} `toml:"dynamic"`
 
-		//key: cols pos
-		Pos map[int]struct {
-			Dynamic *struct {
-				PlanIdx         int    `toml:"plan_idx"`
-				Col             string `toml:"col"`
-				StartSyncOffset int    `toml:"start_sync_offset"`
-			} `toml:"dynamic"`
+				Static *string `toml:"static"`
+			}
+		} `toml:"fix"`
 
-			Static *string `toml:"static"`
-		}
-	} `toml:"bind"`
-
-	Vm *struct {
-		Lang   string `toml:"lang"`
-		Script string `toml:"script"`
-	} `toml:"vm"`
+		Vm *struct {
+			Lang   string `toml:"lang"`
+			Script string `toml:"script"`
+		} `toml:"vm"`
+	}  `toml:"bind"`
 
 	Tran  bool   `toml:"is_tran"`
 	Query string `toml:"query"`
 }
 
 type ScriptQueryReadPlan struct {
-	//key: cols pos
-	Bind map[int]struct {
-		Dynamic *struct {
-			PlanIdx int    `toml:"plan_idx"`
-			Col     string `toml:"col"`
-			RowIdx  int    `toml:"row"`
-		} `toml:"dynamic"`
-		Static *string `toml:"static"`
-	} `toml:"bind"`
+	Bind struct {
+			//key: cols pos
+		Fix map[string]struct {
+			Dynamic *struct {
+				PlanIdx int    `toml:"plan_idx"`
+				Col     string `toml:"col"`
+				RowIdx  int    `toml:"row"`
+			} `toml:"dynamic"`
+			Static *string `toml:"static"`
+		} `toml:"fix"`
 
-	Vm *struct {
-		Lang   string `toml:"lang"`
-		Script string `toml:"script"`
-	} `toml:"vm"`
+		Vm *struct {
+			Lang   string `toml:"lang"`
+			Script string `toml:"script"`
+		} `toml:"vm"`
+	}  `toml:"bind"`
 
 	Tran  bool   `toml:"is_tran"`
 	Query string `toml:"query"`
@@ -57,16 +56,22 @@ type ScriptQueryReadPlan struct {
 }
 
 type ScriptConfig struct {
-	Ident string `toml:"identifier"`
-
 	Interval struct {
 		Sec int `toml:"sec"`
 	} `toml:"interval"`
 
-	//key : identifier
-	Init map[string]struct {
-		Query        []string `toml:"query"`
-		TriggerQuery string   `toml:"trigger"`
+	
+	Init *struct {
+		Self []struct {
+			Query        string `toml:"query"`
+			TriggerQuery string   `toml:"trigger"`
+		} `toml:"self"`
+
+		//key : identifier
+		Other map[string]struct {
+			Query        []string `toml:"query"`
+			TriggerQuery string   `toml:"trigger"`
+		} `toml:"other"`
 	} `toml:"init"`
 
 	Option *struct {
