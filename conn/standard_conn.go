@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"oncecall/errlist"
+	"slices"
+	"strings"
 	"time"
 
 	_ "github.com/SAP/go-hdb/driver"
@@ -107,6 +109,64 @@ func (p *standardConnPool) RunExecute(ctx context.Context, arg *Args) error {
 	return nil
 }
 
+func (*standardConnPool) isTypeText(t string) bool {
+	li := []string{
+		"VARCHAR",
+		"TEXT",
+		"STRING",
+		"VARCHAR",
+		"BPCHAR",
+	}
+	uppr := strings.ToUpper(t)
+
+	for _, chkT := range li {
+		chk := strings.Contains(uppr, chkT)
+		if chk {
+			return true
+		}
+	}
+	return false
+}
+
+func (*standardConnPool) isTypeBigInt(t string) bool {
+	li := []string{
+		"INT8",
+		"BIGINT",
+	}
+
+	return slices.Index(li, strings.ToUpper(t)) != -1
+}
+
+func (*standardConnPool) isTypeSInt(t string) bool {
+	li := []string{
+		"INT",
+		"INT2",
+		"INT4",
+		"INTEGER",
+	}
+
+	return slices.Index(li, strings.ToUpper(t)) != -1
+}
+
+func (*standardConnPool) isTypeDouble(t string) bool {
+	li := []string{
+		"DOUBLE",
+		"FLOAT",
+		"FLOAT4",
+		"FLOAT8",
+	}
+
+	return slices.Index(li, strings.ToUpper(t)) != -1
+}
+
+func (*standardConnPool) isTypeBytes(t string) bool {
+	li := []string{
+		"BLOB",
+	}
+
+	return slices.Index(li, strings.ToUpper(t)) != -1
+}
+
 func (p *standardConnPool) RunQuery(ctx context.Context, arg *Args) (rows [][]any, name []string, err error) {
 	conn, connErr := p.conn.Conn(ctx)
 	if connErr != nil {
@@ -153,15 +213,15 @@ func (p *standardConnPool) RunQuery(ctx context.Context, arg *Args) (rows [][]an
 
 		for idx := range len(cType) {
 			dType := cType[idx].DatabaseTypeName()
-			if isTypeDouble(dType) {
+			if p.isTypeDouble(dType) {
 				rowD[idx] = 0.0
-			} else if isTypeSInt(dType) {
+			} else if p.isTypeSInt(dType) {
 				rowD[idx] = int(0)
-			} else if isTypeBigInt(dType) {
+			} else if p.isTypeBigInt(dType) {
 				rowD[idx] = int64(0)
-			} else if isTypeText(dType) {
+			} else if p.isTypeText(dType) {
 				rowD[idx] = ""
-			} else if isTypeBytes(dType) {
+			} else if p.isTypeBytes(dType) {
 				rowD[idx] = sql.RawBytes{}
 			} else {
 				return nil, nil, errlist.ErrG.NewError(nil, "not support type, name:%s, type:%s", p.name, dType)
