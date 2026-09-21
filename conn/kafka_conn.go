@@ -7,13 +7,19 @@ import (
 	"oncecall/utils/generic"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
 
 type syncKafkaReadClient generic.Pair[*kafka.Consumer, sync.Mutex]
-type syncKafkaWriteClient generic.Pair[*kafka.Consumer, sync.Mutex]
 
+func (s *syncKafkaReadClient) Close() error {
+	s.Second.Lock()
+	defer s.Second.Unlock()
+
+	return s.First.Close()
+}
 func (s *syncKafkaReadClient) Read(count int, limitPoolMs int) ([][]any, []string, error) {
 	s.Second.Lock()
 	defer s.Second.Unlock()
@@ -59,22 +65,26 @@ type kafkaConnPool struct {
 
 	kafkaConf *kafka.ConfigMap
 
-	readTimeoutMs  int
-	writeTimeoutMs int
+	consumerMap  *generic.GenericSyncMap[string, *syncKafkaReadClient]
+	producerPool *generic.GenericSyncPool[*kafka.Producer]
 
-	consumerMap *generic.GenericSyncMap[string, *syncKafkaReadClient]
-	producerMap *generic.GenericSyncMap[string, *syncKafkaWriteClient]
+	isClose atomic.Bool
 }
 
-func (*kafkaConnPool) getArg(arg *Args) (count int, err error) {
-	if len(arg.Args) <= 0 || len(arg.Args[0]) < 1 {
-		return -1, errlist.ErrG.NewError(prefix.SentinelCatchError, "kafka need count args")
+func (*kafkaConnPool) getArg(arg *Args) (count int, readTimeoutMs int, err error) {
+	if len(arg.Args) <= 0 || len(arg.Args[0]) < 2 {
+		return -1, -1, errlist.ErrG.NewError(prefix.SentinelCatchError, "kafka need count args")
 	}
 
 	var convOk bool
 	count, convOk = arg.Args[0][0].(int)
 	if !convOk {
-		return -1, errlist.ErrG.NewError(prefix.NotMatchingError, "kafka convert failed arg %v", arg.Args[0][0])
+		return -1, -1, errlist.ErrG.NewError(prefix.NotMatchingError, "kafka convert failed count %v", arg.Args[0][0])
+	}
+
+	readTimeoutMs, convOk = arg.Args[0][1].(int)
+	if !convOk {
+		return -1, -1, errlist.ErrG.NewError(prefix.NotMatchingError, "kafka convert failed readTimeoutMs %v", arg.Args[0][0])
 	}
 
 	return
@@ -84,32 +94,123 @@ func (*kafkaConnPool) splitTopicFromQuery(query string) []string {
 	return strings.Split(query, ",")
 }
 
-func (k *kafkaConnPool) RunExecute(ctx context.Context, arg *Args) error {
-	if arg.Query == "" {
-		return errlist.ErrG.NewError(prefix.SentinelCatchError, "topic is empty")
-	}
-	//topics := k.splitTopicFromQuery(arg.Query)
+func (*kafkaConnPool) doProducer(ctx context.Context, producer *kafka.Producer, topic string, arg *Args) error {
+	for idx, data := range arg.Args {
+		if len(data) < 1 {
+			return errlist.ErrG.NewError(prefix.SentinelCatchError, "data is empty %d", idx)
+		}
 
+		if data[0] == nil {
+			continue
+		}
+		var messageValue []byte
+
+		switch data[0].(type) {
+		case string:
+			messageValue = []byte(data[0].(string))
+		case []byte:
+			messageValue = data[0].([]byte)
+		default:
+			return errlist.ErrG.NewError(prefix.NotMatchingError, "convert failed data (only support string, []byte)%v", data)
+		}
+
+		if err := producer.Produce(&kafka.Message{
+			Value: messageValue,
+			TopicPartition: kafka.TopicPartition{
+				Topic:     &topic,
+				Partition: kafka.PartitionAny,
+			},
+		}, nil); err != nil {
+			return errlist.ErrG.NewError(err, "produce failed")
+		}
+	}
 	return nil
 }
 
-func (k kafkaConnPool) RunQuery(ctx context.Context, arg *Args) (rows [][]any, name []string, err error) {
+func (k *kafkaConnPool) RunExecute(ctx context.Context, arg *Args) error {
+	if k.isClose.Load() {
+		return errlist.ErrG.NewError(prefix.ClosedError, "kafka connection pool is closed")
+	}
+	if arg.Query == "" {
+		return errlist.ErrG.NewError(prefix.SentinelCatchError, "topic is empty")
+	}
+	topic := arg.Query
+	producer := k.producerPool.Get()
+
+	if arg.IsTransaction {
+		if err := producer.BeginTransaction(); err != nil {
+			producer.Close()
+			return errlist.ErrG.NewError(err, "begin transaction failed")
+		}
+
+		if err := k.doProducer(ctx, producer, topic, arg); err != nil {
+			_ = producer.AbortTransaction(ctx)
+			producer.Close()
+			return errlist.ErrG.NewError(err, "do producer failed")
+		}
+
+		if err := producer.CommitTransaction(ctx); err != nil {
+			_ = producer.AbortTransaction(ctx)
+			producer.Close()
+			return errlist.ErrG.NewError(err, "commit transaction failed")
+		}
+	} else {
+		if err := k.doProducer(ctx, producer, topic, arg); err != nil {
+			producer.Close()
+			return errlist.ErrG.NewError(err, "do producer failed")
+		}
+	}
+
+	k.producerPool.Put(producer)
+	return nil
+}
+
+func (k *kafkaConnPool) RunQuery(ctx context.Context, arg *Args) (rows [][]any, name []string, err error) {
+	if k.isClose.Load() {
+		return nil, nil, errlist.ErrG.NewError(prefix.ClosedError, "kafka connection pool is closed")
+	}
 	if arg.Query == "" {
 		return nil, nil, errlist.ErrG.NewError(prefix.SentinelCatchError, "topic is empty")
 	}
-	//topics := k.splitTopicFromQuery(arg.Query)
 
-	return nil, nil, nil
+	readConn, ok := k.consumerMap.Load(arg.Query)
+	if !ok {
+		newConn, newErr := kafka.NewConsumer(k.kafkaConf)
+		if newErr != nil {
+			return nil, nil, errlist.ErrG.NewError(newErr, "create consumer failed %s", k.conf.Server)
+		}
+		topics := k.splitTopicFromQuery(arg.Query)
+		if err = newConn.SubscribeTopics(topics, nil); err != nil {
+			return nil, nil, errlist.ErrG.NewError(err, "subscribe topic failed %v", topics)
+		}
+
+		readConn = &syncKafkaReadClient{
+			First:  newConn,
+			Second: sync.Mutex{},
+		}
+		k.consumerMap.Store(arg.Query, readConn)
+	}
+
+	count, timeoutMs, argErr := k.getArg(arg)
+	if argErr != nil {
+		return nil, nil, errlist.ErrG.NewError(argErr, "get args failed")
+	}
+
+	data, cols, readErr := readConn.Read(count, timeoutMs)
+	if readErr != nil {
+		_ = readConn.Close()
+		return nil, nil, errlist.ErrG.NewError(readErr, "read failed")
+	}
+	return data, cols, nil
 }
 
-func (k kafkaConnPool) GetConfig() ConnConfig {
-	//TODO implement me
-	panic("implement me")
+func (k *kafkaConnPool) GetConfig() ConnConfig {
+	return *k.conf
 }
 
-func (k kafkaConnPool) Close() error {
-	//TODO implement me
-	panic("implement me")
+func (k *kafkaConnPool) Close() error {
+	k.isClose.Store(true)
+	return nil
 }
 
 var _ ConnPoolInterface = (*kafkaConnPool)(nil)
