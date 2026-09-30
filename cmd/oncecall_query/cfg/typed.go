@@ -1,8 +1,10 @@
 package cfg
 
-import "oncecall/conn"
+import (
+	"oncecall/conn/types"
+)
 
-type ConnConfig = conn.ConnConfig
+type ConnConfig = types.ConnConfig
 
 type ScriptQuerySyncPlan struct {
 	Bind struct {
@@ -23,7 +25,7 @@ type ScriptQuerySyncPlan struct {
 			Lang   string `toml:"lang"`
 			Script string `toml:"script"`
 		} `toml:"vm"`
-	}  `toml:"bind"`
+	} `toml:"bind"`
 
 	Tran  bool   `toml:"is_tran"`
 	Query string `toml:"query"`
@@ -31,7 +33,7 @@ type ScriptQuerySyncPlan struct {
 
 type ScriptQueryReadPlan struct {
 	Bind struct {
-			//key: cols pos
+		//key: cols pos
 		Fix map[string]struct {
 			Dynamic *struct {
 				PlanIdx int    `toml:"plan_idx"`
@@ -45,7 +47,7 @@ type ScriptQueryReadPlan struct {
 			Lang   string `toml:"lang"`
 			Script string `toml:"script"`
 		} `toml:"vm"`
-	}  `toml:"bind"`
+	} `toml:"bind"`
 
 	Tran  bool   `toml:"is_tran"`
 	Query string `toml:"query"`
@@ -60,11 +62,10 @@ type ScriptConfig struct {
 		Sec int `toml:"sec"`
 	} `toml:"interval"`
 
-	
 	Init *struct {
 		Self []struct {
 			Query        string `toml:"query"`
-			TriggerQuery string   `toml:"trigger"`
+			TriggerQuery string `toml:"trigger"`
 		} `toml:"self"`
 
 		//key : identifier

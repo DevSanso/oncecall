@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"oncecall/conn/internal/utils"
+	"oncecall/conn/types"
 	"oncecall/define"
 	"oncecall/errlist"
-	"strconv"
-	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -16,7 +16,8 @@ import (
 
 type addressKey string
 
-type sshClientPool struct {
+type sshNonInteractivePool struct {
+	utils.ShConnUtils
 	isCloseFlag atomic.Bool
 	client      *ssh.Client
 
@@ -28,10 +29,10 @@ type sshClientPool struct {
 
 	initClientMutex sync.Mutex
 
-	conf *ConnConfig
+	conf *types.ConnConfig
 }
 
-func newSSHConnPool(info *ConnConfig) (ConnPoolInterface, error) {
+func newNonInteractiveSSHConnPool(info *types.ConnConfig) (types.ConnPoolInterface, error) {
 	if info.DBType != string(define.SSH) {
 		return nil, errlist.ErrG.NewError(nil, "not match db type: %s", info.DBType)
 	}
@@ -92,7 +93,7 @@ func newSSHConnPool(info *ConnConfig) (ConnPoolInterface, error) {
 		}
 	}
 
-	return &sshClientPool{
+	return &sshNonInteractivePool{
 		address:     ip,
 		config:      config,
 		splitChar:   info.OptionMap["split"].(string),
@@ -103,11 +104,11 @@ func newSSHConnPool(info *ConnConfig) (ConnPoolInterface, error) {
 
 }
 
-func (s *sshClientPool) GetConfig() ConnConfig {
+func (s *sshNonInteractivePool) GetConfig() types.ConnConfig {
 	return *s.conf
 }
 
-func (s *sshClientPool) getSession() (sess *ssh.Session, err error) {
+func (s *sshNonInteractivePool) getSession() (sess *ssh.Session, err error) {
 	s.initClientMutex.Lock()
 	defer s.initClientMutex.Unlock()
 	if s.client == nil {
@@ -119,7 +120,7 @@ func (s *sshClientPool) getSession() (sess *ssh.Session, err error) {
 	return s.client.NewSession()
 }
 
-func (s *sshClientPool) RunExecute(ctx context.Context, arg *Args) error {
+func (s *sshNonInteractivePool) RunExecute(ctx context.Context, arg *types.Args) error {
 	if s.isCloseFlag.Load() {
 		return errlist.ErrG.NewError(nil, "already close ssh conn")
 	}
@@ -142,79 +143,7 @@ func (s *sshClientPool) RunExecute(ctx context.Context, arg *Args) error {
 	}
 }
 
-func (s *sshClientPool) countFields(line string, sep string) int {
-	count := 1
-	inQuote := false
-
-	for i := 0; i < len(line); i++ {
-		if line[i] == '"' {
-			inQuote = !inQuote
-			continue
-		}
-
-		if !inQuote && strings.HasPrefix(line[i:], sep) {
-			count++
-			i += len(sep) - 1
-		}
-	}
-
-	return count
-}
-
-func (s *sshClientPool) splitLine(line string, sep string) []string {
-	var result []string
-	var field strings.Builder
-	inQuote := false
-
-	for i := 0; i < len(line); i++ {
-		if line[i] == '"' {
-			inQuote = !inQuote
-			continue
-		}
-
-		if !inQuote && strings.HasPrefix(line[i:], sep) {
-			result = append(result, field.String())
-			field.Reset()
-			i += len(sep) - 1
-			continue
-		}
-
-		field.WriteByte(line[i])
-	}
-
-	result = append(result, field.String())
-
-	return result
-}
-
-func (s *sshClientPool) splitLineKeepQuote(line string, sep string) []string {
-	var result []string
-	var field strings.Builder
-	inQuote := false
-
-	for i := 0; i < len(line); i++ {
-		if line[i] == '"' {
-			inQuote = !inQuote
-			field.WriteByte(line[i])
-			continue
-		}
-
-		if !inQuote && strings.HasPrefix(line[i:], sep) {
-			result = append(result, field.String())
-			field.Reset()
-			i += len(sep) - 1
-			continue
-		}
-
-		field.WriteByte(line[i])
-	}
-
-	result = append(result, field.String())
-
-	return result
-}
-
-func (s *sshClientPool) RunQuery(ctx context.Context, arg *Args) (rows [][]any, name []string, err error) {
+func (s *sshNonInteractivePool) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, err error) {
 	if s.isCloseFlag.Load() {
 		return nil, nil, errlist.ErrG.NewError(nil, "already close ssh conn")
 	}
@@ -249,43 +178,12 @@ func (s *sshClientPool) RunQuery(ctx context.Context, arg *Args) (rows [][]any, 
 			return nil, nil, errlist.ErrG.NewError(nil, "cmd err:%s", errB.String())
 		}
 
-		lines := s.splitLineKeepQuote(b.String(), s.newlineChar)
-		var res = make([][]any, len(lines))
-		var max = 0
-
-		if s.splitChar != "" {
-			for _, line := range lines {
-				if cnt := s.countFields(line, s.splitChar); max < cnt {
-					max = cnt
-				}
-			}
-
-			if max <= 0 {
-				max = 1
-			}
-
-			for idx, line := range lines {
-				res[idx] = make([]any, max)
-				for didx, data := range s.splitLine(line, s.splitChar) {
-					res[idx][didx] = data
-				}
-			}
-		} else {
-			for idx, line := range lines {
-				res[idx] = make([]any, 1)
-				res[idx][0] = line
-			}
-		}
-
-		name = make([]string, len(res))
-		for idx := range res {
-			name[idx] = strconv.Itoa(idx + 1)
-		}
-
-		return res, nil, nil
+		rows, name = s.parseResponse(b.String(), s.newlineChar, s.splitChar)
+		err = nil
+		return
 	}
 }
-func (s *sshClientPool) Close() error {
+func (s *sshNonInteractivePool) Close() error {
 	if s.isCloseFlag.Swap(true) {
 		return errlist.ErrG.NewError(nil, "already close ssh conn")
 	}

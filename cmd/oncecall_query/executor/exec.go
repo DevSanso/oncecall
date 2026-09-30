@@ -6,6 +6,7 @@ import (
 	"crypto/md5"
 	"oncecall/cmd/oncecall_query/cfg"
 	"oncecall/conn"
+	"oncecall/conn/types"
 	"oncecall/errlist"
 	"oncecall/utils/generic"
 	"slices"
@@ -15,7 +16,7 @@ import (
 )
 
 type Executor struct {
-	manageConf          *cfg.ProcessConfig
+	manageConf *cfg.ProcessConfig
 
 	private execPrivateState
 	shared  *execSharedState
@@ -25,7 +26,7 @@ func NewExecutor(ctx context.Context, manageConf *cfg.ProcessConfig) *Executor {
 	e := &Executor{
 		manageConf: manageConf,
 		shared:     newExecSharedState(),
-		private: execPrivateState{},
+		private:    execPrivateState{},
 	}
 	e.shared.executorContext = ctx
 	return e
@@ -43,7 +44,7 @@ func (e *Executor) Fetch(timeoutMs int) error {
 	timeCtx, cancelFn := context.WithTimeout(e.shared.executorContext, time.Duration(timeoutMs)*time.Millisecond)
 	defer cancelFn()
 
-	listData, _, listErr := e.private.manage.RunQuery(timeCtx, &conn.Args{
+	listData, _, listErr := e.private.manage.RunQuery(timeCtx, &types.Args{
 		Query:         e.manageConf.Cmd.Db.Query.DbList,
 		Args:          nil,
 		IsTransaction: false,
@@ -53,7 +54,7 @@ func (e *Executor) Fetch(timeoutMs int) error {
 		return errlist.ErrG.NewError(listErr, "get db list data failed : %s", e.manageConf.Cmd.Db.Query.DbList)
 	}
 
-	optionData, _, optErr := e.private.manage.RunQuery(timeCtx, &conn.Args{
+	optionData, _, optErr := e.private.manage.RunQuery(timeCtx, &types.Args{
 		Query:         e.manageConf.Cmd.Db.Query.DbOption,
 		Args:          nil,
 		IsTransaction: false,
@@ -63,7 +64,7 @@ func (e *Executor) Fetch(timeoutMs int) error {
 		return errlist.ErrG.NewError(optErr, "get db opt data failed : %s", e.manageConf.Cmd.Db.Query.DbOption)
 	}
 
-	scriptData, _, scriptErr := e.private.manage.RunQuery(timeCtx, &conn.Args{
+	scriptData, _, scriptErr := e.private.manage.RunQuery(timeCtx, &types.Args{
 		Query:         e.manageConf.Cmd.Db.Query.Script,
 		Args:          nil,
 		IsTransaction: false,
@@ -73,7 +74,7 @@ func (e *Executor) Fetch(timeoutMs int) error {
 		return errlist.ErrG.NewError(scriptErr, "get script data failed : %s", e.manageConf.Cmd.Db.Query.DbOption)
 	}
 
-	scriptLinkData, _, scriptLinkErr := e.private.manage.RunQuery(timeCtx, &conn.Args{
+	scriptLinkData, _, scriptLinkErr := e.private.manage.RunQuery(timeCtx, &types.Args{
 		Query:         e.manageConf.Cmd.Db.Query.DbScriptLink,
 		Args:          nil,
 		IsTransaction: false,
@@ -103,7 +104,7 @@ func (e *Executor) delNotUseConnPool() error {
 
 	deleted := make([]string, 0, 3)
 
-	e.shared.pMap.Range(func(key string, _ conn.ConnPoolInterface) bool {
+	e.shared.pMap.Range(func(key string, _ types.ConnPoolInterface) bool {
 		if !slices.Contains(identifiers, key) {
 			deleted = append(deleted, key)
 
@@ -189,7 +190,7 @@ func (e *Executor) loadConnPool() error {
 			return errlist.ErrG.NewError(optionErr, "load conn option failed : %s", identifier)
 		}
 
-		newPool, newPoolErr := conn.GetConnPool(&conn.ConnConfig{
+		newPool, newPoolErr := conn.GetConnPool(&types.ConnConfig{
 			DBType:    dbtype,
 			Name:      name,
 			Server:    server,
@@ -264,7 +265,7 @@ func (e *Executor) loadScriptLink() error {
 			return errlist.ErrG.NewError(nil, "convert failed data %s", e.manageConf.Cmd.Db.Query.DbScriptLink)
 		}
 
-		e.private.newRunQ[idx] = generic.Pair[string,string]{First: ident, Second: scriptName}
+		e.private.newRunQ[idx] = generic.Pair[string, string]{First: ident, Second: scriptName}
 	}
 
 	e.private.threadStopFnMap.Range(func(key generic.Pair[string, string], value context.CancelFunc) bool {
@@ -337,7 +338,9 @@ func (e *Executor) DisPatch() error {
 
 	for idx := range e.private.newRunQ {
 		run, notExist := e.shared.isRunningThreadMap.Load(e.private.newRunQ[idx])
-		if !notExist && run {continue}
+		if !notExist && run {
+			continue
+		}
 		thCtx, thCancelFn := context.WithCancel(e.shared.executorContext)
 
 		e.shared.isRunningThreadMap.Store(e.private.newRunQ[idx], true)

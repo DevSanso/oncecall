@@ -1,8 +1,7 @@
-package conn
+package types
 
 import (
 	"context"
-	"oncecall/define"
 )
 
 type Args struct {
@@ -28,17 +27,4 @@ type ConnPoolInterface interface {
 	RunQuery(ctx context.Context, arg *Args) (rows [][]any, name []string, err error)
 	GetConfig() ConnConfig
 	Close() error
-}
-
-func GetConnPool(info *ConnConfig) (ConnPoolInterface, error) {
-	switch info.DBType {
-	case string(define.REDIS):
-		return newRedisConnPool(info)
-	case string(define.SSH):
-		return newSSHConnPool(info)
-	case string(define.CASSANDRA):
-		return newCassandraConnPool(info)
-	default:
-		return newStandardConnPool(info)
-	}
 }

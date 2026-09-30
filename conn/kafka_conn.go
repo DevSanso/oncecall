@@ -2,6 +2,7 @@ package conn
 
 import (
 	"context"
+	"oncecall/conn/types"
 	"oncecall/errlist"
 	"oncecall/errlist/prefix"
 	"oncecall/utils/generic"
@@ -61,17 +62,17 @@ func (s *syncKafkaReadClient) Read(count int, limitPoolMs int) ([][]any, []strin
 }
 
 type kafkaConnPool struct {
-	conf *ConnConfig
+	conf *types.ConnConfig
 
 	kafkaConf *kafka.ConfigMap
 
 	consumerMap  *generic.GenericSyncMap[string, *syncKafkaReadClient]
-	producerPool *generic.GenericSyncPool[*kafka.Producer]
+	producerPool *generic.GenericSyncPool[*generic.Pair[*kafka.Producer, error]]
 
 	isClose atomic.Bool
 }
 
-func (*kafkaConnPool) getArg(arg *Args) (count int, readTimeoutMs int, err error) {
+func (*kafkaConnPool) getArg(arg *types.Args) (count int, readTimeoutMs int, err error) {
 	if len(arg.Args) <= 0 || len(arg.Args[0]) < 2 {
 		return -1, -1, errlist.ErrG.NewError(prefix.SentinelCatchError, "kafka need count args")
 	}
@@ -94,7 +95,7 @@ func (*kafkaConnPool) splitTopicFromQuery(query string) []string {
 	return strings.Split(query, ",")
 }
 
-func (*kafkaConnPool) doProducer(ctx context.Context, producer *kafka.Producer, topic string, arg *Args) error {
+func (*kafkaConnPool) doProducer(ctx context.Context, producer *kafka.Producer, topic string, arg *types.Args) error {
 	for idx, data := range arg.Args {
 		if len(data) < 1 {
 			return errlist.ErrG.NewError(prefix.SentinelCatchError, "data is empty %d", idx)
@@ -127,7 +128,7 @@ func (*kafkaConnPool) doProducer(ctx context.Context, producer *kafka.Producer, 
 	return nil
 }
 
-func (k *kafkaConnPool) RunExecute(ctx context.Context, arg *Args) error {
+func (k *kafkaConnPool) RunExecute(ctx context.Context, arg *types.Args) error {
 	if k.isClose.Load() {
 		return errlist.ErrG.NewError(prefix.ClosedError, "kafka connection pool is closed")
 	}
@@ -135,8 +136,13 @@ func (k *kafkaConnPool) RunExecute(ctx context.Context, arg *Args) error {
 		return errlist.ErrG.NewError(prefix.SentinelCatchError, "topic is empty")
 	}
 	topic := arg.Query
-	producer := k.producerPool.Get()
+	producerPair := k.producerPool.Get()
 
+	if producerPair.Second != nil {
+		return errlist.ErrG.NewError(producerPair.Second, "get failed producer %s", k.conf.Server)
+	}
+
+	producer := producerPair.First
 	if arg.IsTransaction {
 		if err := producer.BeginTransaction(); err != nil {
 			producer.Close()
@@ -161,11 +167,11 @@ func (k *kafkaConnPool) RunExecute(ctx context.Context, arg *Args) error {
 		}
 	}
 
-	k.producerPool.Put(producer)
+	k.producerPool.Put(producerPair)
 	return nil
 }
 
-func (k *kafkaConnPool) RunQuery(ctx context.Context, arg *Args) (rows [][]any, name []string, err error) {
+func (k *kafkaConnPool) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, err error) {
 	if k.isClose.Load() {
 		return nil, nil, errlist.ErrG.NewError(prefix.ClosedError, "kafka connection pool is closed")
 	}
@@ -204,7 +210,7 @@ func (k *kafkaConnPool) RunQuery(ctx context.Context, arg *Args) (rows [][]any, 
 	return data, cols, nil
 }
 
-func (k *kafkaConnPool) GetConfig() ConnConfig {
+func (k *kafkaConnPool) GetConfig() types.ConnConfig {
 	return *k.conf
 }
 
@@ -213,4 +219,4 @@ func (k *kafkaConnPool) Close() error {
 	return nil
 }
 
-var _ ConnPoolInterface = (*kafkaConnPool)(nil)
+var _ types.ConnPoolInterface = (*kafkaConnPool)(nil)

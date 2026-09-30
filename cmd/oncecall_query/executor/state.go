@@ -3,7 +3,7 @@ package executor
 import (
 	"context"
 	"oncecall/cmd/oncecall_query/cfg"
-	"oncecall/conn"
+	"oncecall/conn/types"
 	"oncecall/utils/generic"
 	"oncecall/vm"
 	"oncecall/vm/lua"
@@ -11,7 +11,7 @@ import (
 )
 
 type execPrivateState struct {
-	manage conn.ConnPoolInterface
+	manage types.ConnPoolInterface
 
 	logicMutex    sync.Mutex
 	DbListRaw     [][]any
@@ -27,7 +27,7 @@ type execPrivateState struct {
 
 type execSharedState struct {
 	executorContext context.Context
-	pMap            *generic.GenericSyncMap[string, conn.ConnPoolInterface]
+	pMap            *generic.GenericSyncMap[string, types.ConnPoolInterface]
 	scriptMap       *generic.GenericSyncMap[string, generic.Pair[[16]byte, *cfg.ScriptConfig]]
 	vmP             *generic.GenericSyncPool[vm.Vm]
 
@@ -36,7 +36,7 @@ type execSharedState struct {
 
 func newExecSharedState() *execSharedState {
 	return &execSharedState{
-		pMap: generic.NewGenericSyncMap[string, conn.ConnPoolInterface](),
+		pMap: generic.NewGenericSyncMap[string, types.ConnPoolInterface](),
 		vmP: generic.NewGenericSyncPool[vm.Vm](func() vm.Vm {
 			v := lua.NewLuaVM()
 			return v

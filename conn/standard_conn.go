@@ -3,6 +3,7 @@ package conn
 import (
 	"context"
 	"database/sql"
+	"oncecall/conn/types"
 	"oncecall/errlist"
 	"slices"
 	"strings"
@@ -20,10 +21,10 @@ type standardConnPool struct {
 	conn *sql.DB
 	name string
 
-	conf *ConnConfig
+	conf *types.ConnConfig
 }
 
-func newStandardConnPool(info *ConnConfig) (ConnPoolInterface, error) {
+func newStandardConnPool(info *types.ConnConfig) (types.ConnPoolInterface, error) {
 
 	var db *sql.DB = nil
 	var dbErr error = nil
@@ -45,11 +46,11 @@ func newStandardConnPool(info *ConnConfig) (ConnPoolInterface, error) {
 
 }
 
-func (p *standardConnPool) GetConfig() ConnConfig {
+func (p *standardConnPool) GetConfig() types.ConnConfig {
 	return *p.conf
 }
 
-func (p *standardConnPool) RunExecute(ctx context.Context, arg *Args) error {
+func (p *standardConnPool) RunExecute(ctx context.Context, arg *types.Args) error {
 	conn, connErr := p.conn.Conn(ctx)
 	if connErr != nil {
 		return errlist.ErrG.NewError(connErr, "exec conn failed, name:%s", p.name)
@@ -167,7 +168,7 @@ func (*standardConnPool) isTypeBytes(t string) bool {
 	return slices.Index(li, strings.ToUpper(t)) != -1
 }
 
-func (p *standardConnPool) RunQuery(ctx context.Context, arg *Args) (rows [][]any, name []string, err error) {
+func (p *standardConnPool) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, err error) {
 	conn, connErr := p.conn.Conn(ctx)
 	if connErr != nil {
 

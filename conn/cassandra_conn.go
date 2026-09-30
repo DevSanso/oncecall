@@ -2,6 +2,7 @@ package conn
 
 import (
 	"context"
+	"oncecall/conn/types"
 	"oncecall/errlist"
 	"oncecall/utils"
 	"strconv"
@@ -13,14 +14,14 @@ import (
 
 type cassandraConn struct {
 	cluster *gocql.ClusterConfig
-	conf    *ConnConfig
+	conf    *types.ConnConfig
 
 	isClose    atomic.Bool
 	baseCtx    context.Context
 	baseCancel context.CancelFunc
 }
 
-func newCassandraConnPool(info *ConnConfig) (ConnPoolInterface, error) {
+func newCassandraConnPool(info *types.ConnConfig) (types.ConnPoolInterface, error) {
 	hosts := strings.Split(info.Server, ",")
 	port := strings.Split(info.Server, ":")
 	if len(hosts) <= 0 || len(port) < 2 {
@@ -52,7 +53,7 @@ func newCassandraConnPool(info *ConnConfig) (ConnPoolInterface, error) {
 	}, nil
 }
 
-func (c *cassandraConn) RunExecute(ctx context.Context, arg *Args) error {
+func (c *cassandraConn) RunExecute(ctx context.Context, arg *types.Args) error {
 	if c.isClose.Load() {
 		return errlist.ErrG.NewError(nil, "connection is closed")
 	}
@@ -112,7 +113,7 @@ func (c *cassandraConn) makeRowBuffer(cols []gocql.ColumnInfo) (data []any, err 
 	return
 }
 
-func (c *cassandraConn) RunQuery(ctx context.Context, arg *Args) (rows [][]any, name []string, err error) {
+func (c *cassandraConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, err error) {
 	if c.isClose.Load() {
 		return nil, nil, errlist.ErrG.NewError(nil, "connection is closed")
 	}
@@ -172,7 +173,7 @@ func (c *cassandraConn) RunQuery(ctx context.Context, arg *Args) (rows [][]any, 
 	return retArr, name, nil
 }
 
-func (c *cassandraConn) GetConfig() ConnConfig {
+func (c *cassandraConn) GetConfig() types.ConnConfig {
 	return *c.conf
 }
 
@@ -183,4 +184,4 @@ func (c *cassandraConn) Close() error {
 	return nil
 }
 
-var _ ConnPoolInterface = (*cassandraConn)(nil)
+var _ types.ConnPoolInterface = (*cassandraConn)(nil)

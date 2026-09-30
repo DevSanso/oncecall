@@ -2,6 +2,7 @@ package conn
 
 import (
 	"context"
+	"oncecall/conn/types"
 	"oncecall/errlist"
 	"reflect"
 
@@ -18,10 +19,10 @@ type redisConnPool struct {
 	conn *redis.Client
 	name string
 
-	conf *ConnConfig
+	conf *types.ConnConfig
 }
 
-func newRedisConnPool(info *ConnConfig) (ConnPoolInterface, error) {
+func newRedisConnPool(info *types.ConnConfig) (types.ConnPoolInterface, error) {
 	if info.DBType != string(define.REDIS) {
 		return nil, errlist.ErrG.NewError(nil, "[name:%s] - not support redis dbtype(%s)", info.Name, info.DBType)
 	}
@@ -90,10 +91,10 @@ func (r *redisConnPool) splitRespectQuotes(s string) []any {
 
 	return result
 }
-func (r *redisConnPool) GetConfig() ConnConfig {
+func (r *redisConnPool) GetConfig() types.ConnConfig {
 	return *r.conf
 }
-func (r *redisConnPool) RunExecute(ctx context.Context, arg *Args) error {
+func (r *redisConnPool) RunExecute(ctx context.Context, arg *types.Args) error {
 	trimQuery := strings.ReplaceAll(arg.Query, "\n", "")
 	trimQuery = strings.ReplaceAll(trimQuery, "\r", "")
 	if arg.Args == nil || len(arg.Args) <= 0 {
@@ -138,7 +139,7 @@ func (r *redisConnPool) RunExecute(ctx context.Context, arg *Args) error {
 	return nil
 }
 
-func (r *redisConnPool) RunQuery(ctx context.Context, arg *Args) (rows [][]any, name []string,err error) {
+func (r *redisConnPool) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, err error) {
 	trimQuery := strings.ReplaceAll(arg.Query, "\n", "")
 	trimQuery = strings.ReplaceAll(trimQuery, "\r", "")
 	if arg.Args == nil || len(arg.Args) <= 0 {
@@ -172,7 +173,7 @@ func (r *redisConnPool) RunQuery(ctx context.Context, arg *Args) (rows [][]any, 
 	name = make([]string, len(buf))
 
 	for idx := range buf {
-		name[idx] = strconv.Itoa(idx +1)
+		name[idx] = strconv.Itoa(idx + 1)
 	}
 
 	return buf, name, nil
