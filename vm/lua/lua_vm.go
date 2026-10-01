@@ -18,7 +18,7 @@ type luaVM struct {
 	input  [][]any
 	output [][]any
 
-	tempGPtrMap *generic.GenericSyncMap[string, any]
+	tempGPtrMap *generic.SyncMap[string, any]
 }
 
 func NewLuaVM() vm.Vm {
@@ -244,7 +244,7 @@ func (w *luaVM) registerCacheMapLuaUserData(userdataName string) {
 	w.raw.SetGlobal(userdataName)
 }
 
-func (w *luaVM) Do(cache *generic.GenericSyncMap[string, any], script string, data [][]any) ([][]any, error) {
+func (w *luaVM) Do(cache *generic.SyncMap[string, any], script string, data [][]any) ([][]any, error) {
 	w.input = data
 	if w.input == nil {
 		w.input = [][]any{}

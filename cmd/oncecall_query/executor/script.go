@@ -3,9 +3,9 @@ package executor
 import (
 	"context"
 	"oncecall/cmd/oncecall_query/cfg"
-	"oncecall/conn/types"
 	"oncecall/errlist"
 	"oncecall/errlist/prefix"
+	"oncecall/pool/types"
 	"oncecall/utils/generic"
 	"os"
 	"strconv"
@@ -143,7 +143,7 @@ func (ppb *planParamBuffer) maxSize(seq int64) (cols int, row int, err error) {
 type scriptThread struct {
 	state      *execSharedState
 	key        generic.Pair[string, string]
-	vmCacheMap *generic.GenericSyncMap[string, any]
+	vmCacheMap *generic.SyncMap[string, any]
 }
 
 func newScriptThread(key generic.Pair[string, string], state *execSharedState) *scriptThread {

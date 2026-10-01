@@ -1,10 +1,10 @@
-package conn
+package pool
 
 import (
 	"context"
-	"oncecall/conn/types"
 	"oncecall/errlist"
 	"oncecall/errlist/prefix"
+	"oncecall/pool/types"
 	"oncecall/utils/generic"
 	"strings"
 	"sync"
@@ -66,8 +66,8 @@ type kafkaConnPool struct {
 
 	kafkaConf *kafka.ConfigMap
 
-	consumerMap  *generic.GenericSyncMap[string, *syncKafkaReadClient]
-	producerPool *generic.GenericSyncPool[*generic.Pair[*kafka.Producer, error]]
+	consumerMap  *generic.SyncMap[string, *syncKafkaReadClient]
+	producerPool *generic.SyncPool[*generic.Pair[*kafka.Producer, error]]
 
 	isClose atomic.Bool
 }

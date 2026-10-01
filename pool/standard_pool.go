@@ -1,10 +1,10 @@
-package conn
+package pool
 
 import (
 	"context"
 	"database/sql"
-	"oncecall/conn/types"
 	"oncecall/errlist"
+	"oncecall/pool/types"
 	"slices"
 	"strings"
 	"time"

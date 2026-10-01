@@ -1,14 +1,15 @@
 package define
 
-type DBType string
+type POOLType string
 
 const (
-	SQLSVR    DBType = "sqlserver"
-	POSTGRES  DBType = "postgres"
-	SQLITE    DBType = "sqlite"
-	SAPHANA   DBType = "hanadb"
-	MYSQL     DBType = "mysql"
-	REDIS     DBType = "redis"
-	SSH       DBType = "ssh"
-	CASSANDRA DBType = "cassandra"
+	SQLSVR    POOLType = "sqlserver"
+	POSTGRES  POOLType = "postgres"
+	SQLITE    POOLType = "sqlite"
+	SAPHANA   POOLType = "hanadb"
+	MYSQL     POOLType = "mysql"
+	REDIS     POOLType = "redis"
+	SSH       POOLType = "ssh"
+	CASSANDRA POOLType = "cassandra"
+	LOCAL     POOLType = "local"
 )

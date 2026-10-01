@@ -3,7 +3,7 @@ package executor
 import (
 	"context"
 	"oncecall/cmd/oncecall_query/cfg"
-	"oncecall/conn/types"
+	"oncecall/pool/types"
 	"oncecall/utils/generic"
 	"oncecall/vm"
 	"oncecall/vm/lua"
@@ -22,16 +22,16 @@ type execPrivateState struct {
 	//Ident, script
 	newRunQ         []generic.Pair[string, string]
 	StopRunQ        []generic.Pair[string, string]
-	threadStopFnMap *generic.GenericSyncMap[generic.Pair[string, string], context.CancelFunc]
+	threadStopFnMap *generic.SyncMap[generic.Pair[string, string], context.CancelFunc]
 }
 
 type execSharedState struct {
 	executorContext context.Context
-	pMap            *generic.GenericSyncMap[string, types.ConnPoolInterface]
-	scriptMap       *generic.GenericSyncMap[string, generic.Pair[[16]byte, *cfg.ScriptConfig]]
-	vmP             *generic.GenericSyncPool[vm.Vm]
+	pMap            *generic.SyncMap[string, types.ConnPoolInterface]
+	scriptMap       *generic.SyncMap[string, generic.Pair[[16]byte, *cfg.ScriptConfig]]
+	vmP             *generic.SyncPool[vm.Vm]
 
-	isRunningThreadMap *generic.GenericSyncMap[generic.Pair[string, string], bool]
+	isRunningThreadMap *generic.SyncMap[generic.Pair[string, string], bool]
 }
 
 func newExecSharedState() *execSharedState {

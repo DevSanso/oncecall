@@ -1,19 +1,19 @@
-package conn
+package pool
 
 import (
 	"errors"
 	"fmt"
-	"oncecall/conn/types"
+	"oncecall/pool/types"
 
 	"oncecall/define"
 )
 
 const CustomDriver = ""
 
-var urlMap map[define.DBType]struct {
+var urlMap map[define.POOLType]struct {
 	Driver string
 	Url    string
-} = map[define.DBType]struct {
+} = map[define.POOLType]struct {
 	Driver string
 	Url    string
 }{
@@ -25,7 +25,7 @@ var urlMap map[define.DBType]struct {
 	define.REDIS:    {Driver: CustomDriver, Url: "redis://%s:%s@%s/%s"},
 }
 
-var urlArgsFn map[define.DBType]func(*types.ConnConfig) []any = map[define.DBType]func(*types.ConnConfig) []any{
+var urlArgsFn map[define.POOLType]func(*types.ConnConfig) []any = map[define.POOLType]func(*types.ConnConfig) []any{
 	define.POSTGRES: func(c *types.ConnConfig) []any { return []any{c.Id, c.Password, c.Server, c.Name, "oncecall"} },
 	define.SQLSVR:   func(c *types.ConnConfig) []any { return []any{c.Server, c.Id, c.Password, c.Name, "oncecall"} },
 	define.SAPHANA:  func(c *types.ConnConfig) []any { return []any{c.Id, c.Password, c.Server} },
@@ -35,7 +35,7 @@ var urlArgsFn map[define.DBType]func(*types.ConnConfig) []any = map[define.DBTyp
 }
 
 func getConnUrlAndDriver(info *types.ConnConfig) (driver string, url string, e error) {
-	dbtype := define.DBType(info.DBType)
+	dbtype := define.POOLType(info.DBType)
 
 	mapping, ok := urlMap[dbtype]
 	if !ok {

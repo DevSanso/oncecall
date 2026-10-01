@@ -1,7 +1,7 @@
 package cfg
 
 import (
-	"oncecall/conn/types"
+	"oncecall/pool/types"
 )
 
 type ConnConfig = types.ConnConfig

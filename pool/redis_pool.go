@@ -1,9 +1,10 @@
-package conn
+package pool
 
 import (
 	"context"
-	"oncecall/conn/types"
 	"oncecall/errlist"
+	"oncecall/pool/internal/utils"
+	"oncecall/pool/types"
 	"reflect"
 
 	"strconv"
@@ -16,8 +17,9 @@ import (
 )
 
 type redisConnPool struct {
-	conn *redis.Client
-	name string
+	commonUtils utils.CommonUtils
+	conn        *redis.Client
+	name        string
 
 	conf *types.ConnConfig
 }
@@ -54,43 +56,6 @@ func newRedisConnPool(info *types.ConnConfig) (types.ConnPoolInterface, error) {
 	}, nil
 }
 
-func (r *redisConnPool) splitRespectQuotes(s string) []any {
-	var result []any
-	var current []rune
-
-	inDouble := false
-	inSingle := false
-
-	for _, r := range s {
-		switch r {
-		case '"':
-			if !inSingle {
-				inDouble = !inDouble
-				continue
-			}
-		case '\'':
-			if !inDouble {
-				inSingle = !inSingle
-				continue
-			}
-		case ' ':
-			if !inDouble && !inSingle {
-				if len(current) > 0 {
-					result = append(result, string(current))
-					current = nil
-				}
-				continue
-			}
-		}
-		current = append(current, r)
-	}
-
-	if len(current) > 0 {
-		result = append(result, string(current))
-	}
-
-	return result
-}
 func (r *redisConnPool) GetConfig() types.ConnConfig {
 	return *r.conf
 }
@@ -98,7 +63,7 @@ func (r *redisConnPool) RunExecute(ctx context.Context, arg *types.Args) error {
 	trimQuery := strings.ReplaceAll(arg.Query, "\n", "")
 	trimQuery = strings.ReplaceAll(trimQuery, "\r", "")
 	if arg.Args == nil || len(arg.Args) <= 0 {
-		ret := r.conn.Do(ctx, r.splitRespectQuotes(trimQuery)...)
+		ret := r.conn.Do(ctx, r.commonUtils.SplitRespectQuotesAny(trimQuery)...)
 
 		if ret.Err() != nil {
 			return errlist.ErrG.NewError(ret.Err(), "query:[%s]", trimQuery)
@@ -116,7 +81,7 @@ func (r *redisConnPool) RunExecute(ctx context.Context, arg *types.Args) error {
 
 	for _, param := range arg.Args {
 		realP := make([]any, 0, len(param)+1)
-		realP = append(realP, r.splitRespectQuotes(trimQuery)...)
+		realP = append(realP, r.commonUtils.SplitRespectQuotesAny(trimQuery)...)
 		realP = append(realP, param...)
 
 		loopRet := r.conn.Do(ctx, realP...)
@@ -143,7 +108,7 @@ func (r *redisConnPool) RunQuery(ctx context.Context, arg *types.Args) (rows [][
 	trimQuery := strings.ReplaceAll(arg.Query, "\n", "")
 	trimQuery = strings.ReplaceAll(trimQuery, "\r", "")
 	if arg.Args == nil || len(arg.Args) <= 0 {
-		ret := r.conn.Do(ctx, r.splitRespectQuotes(trimQuery)...)
+		ret := r.conn.Do(ctx, r.commonUtils.SplitRespectQuotesAny(trimQuery)...)
 
 		if ret.Err() != nil {
 			return nil, nil, errlist.ErrG.NewError(ret.Err(), "query:[%s]", trimQuery)
@@ -157,7 +122,7 @@ func (r *redisConnPool) RunQuery(ctx context.Context, arg *types.Args) (rows [][
 
 	param := arg.Args[0]
 	realP := make([]any, 0, len(param)+1)
-	realP = append(realP, r.splitRespectQuotes(trimQuery)...)
+	realP = append(realP, r.commonUtils.SplitRespectQuotesAny(trimQuery)...)
 	realP = append(realP, param...)
 
 	loopRet := r.conn.Do(ctx, realP...)

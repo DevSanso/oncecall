@@ -4,14 +4,14 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
-	"oncecall/conn/types"
+	"oncecall/pool/types"
 	"strconv"
 	"strings"
 )
 
-type ShConnUtils struct{}
+type ShUtils struct{}
 
-func (ShConnUtils) splitLine(line string, sep string) []string {
+func (ShUtils) splitLine(line string, sep string) []string {
 	var result []string
 	var field strings.Builder
 	inQuote := false
@@ -37,7 +37,7 @@ func (ShConnUtils) splitLine(line string, sep string) []string {
 	return result
 }
 
-func (ShConnUtils) splitLineKeepQuote(line string, sep string) []string {
+func (ShUtils) splitLineKeepQuote(line string, sep string) []string {
 	var result []string
 	var field strings.Builder
 	inQuote := false
@@ -64,7 +64,7 @@ func (ShConnUtils) splitLineKeepQuote(line string, sep string) []string {
 	return result
 }
 
-func (ShConnUtils) countFields(line string, sep string) int {
+func (ShUtils) countFields(line string, sep string) int {
 	count := 1
 	inQuote := false
 
@@ -83,7 +83,7 @@ func (ShConnUtils) countFields(line string, sep string) int {
 	return count
 }
 
-func (s ShConnUtils) ParseResponse(data, newlineChar, splitChar string) (rows [][]any, name []string) {
+func (s ShUtils) ParseResponse(data, newlineChar, splitChar string) (rows [][]any, name []string) {
 	lines := s.splitLineKeepQuote(data, newlineChar)
 	var res = make([][]any, len(lines))
 	var dataMax = 0
@@ -121,7 +121,7 @@ func (s ShConnUtils) ParseResponse(data, newlineChar, splitChar string) (rows []
 	return
 }
 
-func (ShConnUtils) MakeParam(inputNextLineChar string, inputDivisionChar string, arg *types.Args) []byte {
+func (ShUtils) MakeParam(inputNextLineChar string, inputDivisionChar string, arg *types.Args) []byte {
 	var buf bytes.Buffer
 
 	for rowIdx := range arg.Args {

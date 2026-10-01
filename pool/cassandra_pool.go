@@ -1,9 +1,9 @@
-package conn
+package pool
 
 import (
 	"context"
-	"oncecall/conn/types"
 	"oncecall/errlist"
+	"oncecall/pool/types"
 	"oncecall/utils"
 	"strconv"
 	"strings"

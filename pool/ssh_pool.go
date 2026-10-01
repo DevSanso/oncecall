@@ -1,13 +1,13 @@
-package conn
+package pool
 
 import (
 	"bytes"
 	"context"
 	"fmt"
-	"oncecall/conn/internal/utils"
-	"oncecall/conn/types"
 	"oncecall/define"
 	"oncecall/errlist"
+	"oncecall/pool/internal/utils"
+	"oncecall/pool/types"
 	"sync"
 	"sync/atomic"
 
@@ -17,7 +17,7 @@ import (
 type addressKey string
 
 type sshNonInteractivePool struct {
-	utils.ShConnUtils
+	utils.ShUtils
 	isCloseFlag atomic.Bool
 	client      *ssh.Client
 
@@ -49,7 +49,7 @@ func newNonInteractiveSSHConnPool(info *types.ConnConfig) (types.ConnPoolInterfa
 		return nil, errlist.ErrG.NewError(nil, "not exists split option string")
 	}
 
-	if _, exists := info.OptionMap["split"]; !exists {
+	if _, exists := info.OptionMap["newline"]; !exists {
 		return nil, errlist.ErrG.NewError(nil, "not exists newline option string")
 	}
 
@@ -178,7 +178,7 @@ func (s *sshNonInteractivePool) RunQuery(ctx context.Context, arg *types.Args) (
 			return nil, nil, errlist.ErrG.NewError(nil, "cmd err:%s", errB.String())
 		}
 
-		rows, name = s.parseResponse(b.String(), s.newlineChar, s.splitChar)
+		rows, name = s.ParseResponse(b.String(), s.newlineChar, s.splitChar)
 		err = nil
 		return
 	}
