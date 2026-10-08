@@ -32,7 +32,12 @@ type sshNonInteractivePool struct {
 	conf *types.ConnConfig
 }
 
-func newNonInteractiveSSHConnPool(info *types.ConnConfig) (types.ConnPoolInterface, error) {
+func (s *sshNonInteractivePool) Alloc() (all int, used int, idle int) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func newNonInteractiveSSHConnPool(info *types.ConnConfig) (privateConnPool, error) {
 	if info.DBType != string(define.SSH) {
 		return nil, errlist.ErrG.NewError(nil, "not match db type: %s", info.DBType)
 	}
@@ -147,8 +152,8 @@ func (s *sshNonInteractivePool) RunQuery(ctx context.Context, arg *types.Args) (
 	if s.isCloseFlag.Load() {
 		return nil, nil, errlist.ErrG.NewError(nil, "already close ssh conn")
 	}
-
-	if sess, err := s.getSession(); err != nil {
+	var sess *ssh.Session
+	if sess, err = s.getSession(); err != nil {
 		return nil, nil, err
 	} else {
 		defer sess.Close()

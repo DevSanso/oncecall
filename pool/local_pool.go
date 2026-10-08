@@ -11,13 +11,16 @@ import (
 )
 
 type localConnPool struct {
-
-
 	conf        types.ConnConfig
 	connUsePool *generic.SyncUsePool[*connection.LocalShConn, any]
 }
 
-func newLocalConnPool(conf *types.ConnConfig) (types.ConnPoolInterface, error) {
+func (l *localConnPool) Alloc() (all int, used int, idle int) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func newLocalConnPool(conf *types.ConnConfig) (privateConnPool, error) {
 	var exists bool
 	var interactiveOpt, outputSplitCharOpt, outputNewlineCharOpt, inputNextLineCharOpt, inputDivisionCharOpt, argsOpt any
 
@@ -53,11 +56,11 @@ func newLocalConnPool(conf *types.ConnConfig) (types.ConnPoolInterface, error) {
 		args = commonUtils.SplitRespectQuotesStr(argStr)
 	}
 	p := &localConnPool{
-		conf : *conf,
+		conf: *conf,
 	}
 
 	p.connUsePool = generic.NewGenericSyncUsePool[*connection.LocalShConn, any](func() (*connection.LocalShConn, error) {
-		return 	connection.NewLocalShConn(
+		return connection.NewLocalShConn(
 			interactiveOpt.(bool),
 			conf.Name,
 			outputSplitCharOpt.(string),
@@ -110,4 +113,4 @@ func (l *localConnPool) Close() error {
 	return nil
 }
 
-var _ types.ConnPoolInterface = (*localConnPool)(nil)
+var _ privateConnPool = (*localConnPool)(nil)

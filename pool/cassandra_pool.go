@@ -21,7 +21,12 @@ type cassandraConn struct {
 	baseCancel context.CancelFunc
 }
 
-func newCassandraConnPool(info *types.ConnConfig) (types.ConnPoolInterface, error) {
+func (c *cassandraConn) Alloc() (all int, used int, idle int) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func newCassandraConnPool(info *types.ConnConfig) (privateConnPool, error) {
 	hosts := strings.Split(info.Server, ",")
 	port := strings.Split(info.Server, ":")
 	if len(hosts) <= 0 || len(port) < 2 {
@@ -184,4 +189,4 @@ func (c *cassandraConn) Close() error {
 	return nil
 }
 
-var _ types.ConnPoolInterface = (*cassandraConn)(nil)
+var _ privateConnPool = (*cassandraConn)(nil)

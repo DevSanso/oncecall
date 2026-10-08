@@ -24,7 +24,12 @@ type redisConnPool struct {
 	conf *types.ConnConfig
 }
 
-func newRedisConnPool(info *types.ConnConfig) (types.ConnPoolInterface, error) {
+func (r *redisConnPool) Alloc() (all int, used int, idle int) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func newRedisConnPool(info *types.ConnConfig) (privateConnPool, error) {
 	if info.DBType != string(define.REDIS) {
 		return nil, errlist.ErrG.NewError(nil, "[name:%s] - not support redis dbtype(%s)", info.Name, info.DBType)
 	}

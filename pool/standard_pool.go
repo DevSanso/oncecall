@@ -24,7 +24,12 @@ type standardConnPool struct {
 	conf *types.ConnConfig
 }
 
-func newStandardConnPool(info *types.ConnConfig) (types.ConnPoolInterface, error) {
+func (p *standardConnPool) Alloc() (all int, used int, idle int) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func newStandardConnPool(info *types.ConnConfig) (privateConnPool, error) {
 
 	var db *sql.DB = nil
 	var dbErr error = nil
