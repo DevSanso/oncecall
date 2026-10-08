@@ -11,12 +11,12 @@ import (
 	"time"
 )
 
-type StdGenerator struct {
+type stdGenerator struct {
 	info types.ConnConfig
 	db   *sql.DB
 }
 
-func NewStdGenerator(info types.ConnConfig) (Generator, error) {
+func NewStdGenerator(info types.ConnConfig, lExtension log.LoggerExtension[any]) (Generator, error) {
 	var db *sql.DB = nil
 	var dbErr error = nil
 
@@ -36,10 +36,10 @@ func NewStdGenerator(info types.ConnConfig) (Generator, error) {
 	db.SetMaxOpenConns(info.MaxConn)
 	db.SetConnMaxIdleTime(time.Second * 10)
 
-	return &StdGenerator{info: info, db: db}, nil
+	return &stdGenerator{info: info, db: db}, nil
 }
 
-func (s *StdGenerator) Gen(ctx context.Context, logger log.LoggerDebugExtension[any]) (types.Conn, error) {
+func (s *stdGenerator) Gen(ctx context.Context, logger log.LoggerDebugExtension[any]) (types.Conn, error) {
 	conn, err := s.db.Conn(ctx)
 	if err != nil {
 		return nil, errlist.ErrG.NewError(err, "get conn err, server(%s):name(%s)", s.info.Server, s.info.Name)

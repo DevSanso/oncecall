@@ -25,14 +25,23 @@ type ConnPool struct {
 	pExtension pool.PoolExtension[types.Conn, retWrapper]
 }
 
-func NewConnPool(ctx context.Context, ident string, info types.ConnConfig, metric metric.MetricExtension, logger log.LoggerExtension[any]) (types.ConnPoolInterface, error) {
+func NewConnPool(ctx context.Context, ident string, info types.ConnConfig,
+	metric metric.MetricExtension,
+	poolExtensionLogger log.LoggerExtension[any],
+	rawPoolLogger log.LoggerExtension[any]) (types.ConnPoolInterface, error) {
 	var g gen.Generator
 	var gErr error
 	switch define.POOLType(info.DBType) {
 	case define.REDIS:
-		g, gErr = gen.NewRedisGenerator(info)
+
+		g, gErr = gen.NewRedisGenerator(info, rawPoolLogger)
+	case define.LOCAL:
+		g, gErr = gen.NewLocalGenerator(info, rawPoolLogger)
+	case define.KAFKA:
+		g, gErr = gen.NewKafkaGenerator(info, rawPoolLogger)
 	default:
-		g, gErr = gen.NewStdGenerator(info)
+
+		g, gErr = gen.NewStdGenerator(info, rawPoolLogger)
 	}
 
 	if gErr != nil {
@@ -43,7 +52,7 @@ func NewConnPool(ctx context.Context, ident string, info types.ConnConfig, metri
 		ident:         ident,
 		conf:          info,
 		connGenerator: g,
-		lExtension:    logger,
+		lExtension:    poolExtensionLogger,
 	}
 
 	cp.pExtension = &pool.SimplePoolExtension[types.Conn, retWrapper]{
@@ -53,11 +62,11 @@ func NewConnPool(ctx context.Context, ident string, info types.ConnConfig, metri
 		},
 		Max:     info.MaxConn,
 		Metric:  metric,
-		Logger:  logger,
+		Logger:  poolExtensionLogger,
 		Context: ctx,
 	}
 
-	logger.Debug("create conn pool (ident:%s,server:%s,dbtype:%s)", ident, info.Server, info.DBType)
+	poolExtensionLogger.Debug("create conn pool (ident:%s,server:%s,dbtype:%s)", ident, info.Server, info.DBType)
 
 	return cp, nil
 }
@@ -116,12 +125,6 @@ func GetConnPool(info *types.ConnConfig) (types.ConnPoolInterface, error) {
 	case string(define.CASSANDRA):
 
 		p, err = newCassandraConnPool(info)
-	case string(define.LOCAL):
-
-		p, err = newLocalConnPool(info)
-	case string(define.KAFKA):
-
-		p, err = newKafkaConnPool(info)
 	}
 
 	if err != nil {

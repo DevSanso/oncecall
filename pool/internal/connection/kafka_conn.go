@@ -2,54 +2,76 @@ package connection
 
 import (
 	"context"
-
+	"encoding/json"
+	"fmt"
 	"oncecall/errlist"
 	"oncecall/errlist/prefix"
 	"oncecall/pool/types"
-	"oncecall/utils/generic"
 
 	"github.com/IBM/sarama"
 )
 
-type SyncKafkaClient generic.Pair[sarama.Consumer, sarama.SyncProducer]
+type KafkaConn struct {
+	consumer sarama.Consumer
+	producer sarama.SyncProducer
 
-
-func NewSyncKafkaClient(addr string, isConsumer bool) (*SyncKafkaClient, error) {
-	o := &SyncKafkaClient{}
-	var err error
-	if isConsumer {
-		o.First, err = sarama.NewConsumer([]string{addr}, nil)		
-	} else {
-		o.Second,err = sarama.NewSyncProducer([]string{addr}, nil)
-	}
-
-	if err != nil {
-		return nil, errlist.ErrG.NewError(err, "")
-	}
-
-	return o, nil
+	consumerOffset int64
+	topic string
 }
 
-
-func (s *SyncKafkaClient) Close() error {
-	if s.First != nil {
-		_ = s.First.Close()
-	} 
-
-	if s.Second != nil {
-		_ = s.Second.Close()
+func NewKafkaConn(addr string, topic string) (types.Conn, error) {
+	c,cErr := sarama.NewConsumer([]string{addr}, nil)
+	if cErr != nil {
+		return nil, errlist.ErrG.NewError(cErr, "kafka consumer get failed")
 	}
+	
+	p,pErr := sarama.NewSyncProducer([]string{addr}, nil)
+	if pErr != nil {
+		_ = c.Close()
+		return nil, errlist.ErrG.NewError(cErr, "kafka consumer get failed")
+	}
+	
+	return &KafkaConn{
+		consumer: c,
+		producer: p,
+		topic: topic,
+		consumerOffset: sarama.OffsetNewest,
+	}, nil
+}
 
+func (k *KafkaConn) RunExecute(ctx context.Context, arg *types.Args) error {
+	err := k.WriteData(k.topic, arg)
+	if err != nil {
+		return errlist.ErrG.NewError(err, "write data failed")
+	}
 	return nil
 }
 
-func (s *SyncKafkaClient) WriteData(topicName string, arg *types.Args) error {
-	if s.Second == nil {
-		return errlist.ErrG.NewError(prefix.NotExistsError, "is not exists Consumer %v", s)
+func (k *KafkaConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, err error) {
+	var res struct {
+		Count int `json:"count"`
 	}
+	if err := json.Unmarshal([]byte(arg.Query), &res); err != nil {
+		return nil, nil, errlist.ErrG.NewError(err, fmt.Sprintf("unmarshal query failed, %s", arg.Query))
+	}
+	var temp int64
+	rows, name, temp, err = k.ReadData(ctx, k.topic, res.Count, k.consumerOffset)
+	if err != nil {
+		return nil, nil, errlist.ErrG.NewError(err, fmt.Sprintf("read data failed (topic:%s, offset:%d)", k.topic, k.consumerOffset))
+	}
+	k.consumerOffset = temp
+	return rows, name, nil
+}
 
+func (k *KafkaConn) Close() error {
+	_ = k.consumer.Close()
+	_ = k.producer.Close()
+	return nil
+}
+
+func (k *KafkaConn) WriteData(topicName string, arg *types.Args) error {
 	messages := make([]*sarama.ProducerMessage, 0, len(arg.Args))
-	
+
 	for idx, data := range arg.Args {
 		if len(data) < 1 {
 			return errlist.ErrG.NewError(prefix.SentinelCatchError, "data is empty %d", idx)
@@ -76,24 +98,24 @@ func (s *SyncKafkaClient) WriteData(topicName string, arg *types.Args) error {
 	}
 
 	if arg.IsTransaction {
-		if txErr := s.Second.BeginTxn(); txErr != nil {
-			_ = s.Second.AbortTxn()
+		if txErr := k.producer.BeginTxn(); txErr != nil {
+			_ = k.producer.AbortTxn()
 			return errlist.ErrG.NewError(txErr, "txn is failed")
 		}
 
-		if sendErr := s.Second.SendMessages(messages); sendErr != nil {
-			_ = s.Second.AbortTxn()
+		if sendErr := k.producer.SendMessages(messages); sendErr != nil {
+			_ = k.producer.AbortTxn()
 			return errlist.ErrG.NewError(sendErr, "tx send error, topic :%s", topicName)
 		}
 
-		if commitTxn := s.Second.CommitTxn(); commitTxn != nil {
-			_ = s.Second.AbortTxn()
+		if commitTxn := k.producer.CommitTxn(); commitTxn != nil {
+			_ = k.producer.AbortTxn()
 			return errlist.ErrG.NewError(commitTxn, "txn is commit failed")
 		}
 
 
 	} else {
-		if sendErr := s.Second.SendMessages(messages); sendErr != nil {
+		if sendErr := k.producer.SendMessages(messages); sendErr != nil {
 			return errlist.ErrG.NewError(sendErr, "send error, topic :%s", topicName)
 		}
 	}
@@ -101,12 +123,7 @@ func (s *SyncKafkaClient) WriteData(topicName string, arg *types.Args) error {
 	return nil
 }
 
-func (s *SyncKafkaClient) ReadData(ctx context.Context, topicName string, count int, offset int64) ([][]any, []string, int64, error) {
-	if s.First == nil {
-		return nil, nil, offset, errlist.ErrG.NewError(prefix.NotExistsError, "is not exists Consumer %v", s)
-	}
-
-
+func (k *KafkaConn) ReadData(ctx context.Context, topicName string, count int, offset int64) ([][]any, []string, int64, error) {
 	data := make([][]any, 5)
 
 	data[0] = make([]any, 0, count/10)
@@ -120,8 +137,8 @@ func (s *SyncKafkaClient) ReadData(ctx context.Context, topicName string, count 
 	key := data[3]
 	value := data[4]
 
-	c :=  s.First
-	
+	c :=  k.consumer
+
 	partitions, partErr := c.Partitions(topicName)
 	if partErr != nil {
 		return nil, nil, offset, errlist.ErrG.NewError(partErr, "get partition failed")
@@ -138,15 +155,15 @@ func (s *SyncKafkaClient) ReadData(ctx context.Context, topicName string, count 
 		if chanErr != nil {
 			return nil, nil, offset, errlist.ErrG.NewError(chanErr, "get consume channel %d", part)
 		}
-		
+
 		defer channel.Close()
 		channels = append(channels, channel.Messages())
 		errChannels = append(errChannels, channel.Errors())
-		
+
 	}
 
 	currentOffset := int64(0)
-	currentCount := 0 
+	currentCount := 0
 
 	for {
 		if currentCount >= count {
