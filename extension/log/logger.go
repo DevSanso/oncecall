@@ -8,8 +8,12 @@ import (
 	"go.uber.org/zap"
 )
 
-type LoggerExtension[PARAM any] interface {
+type LoggerDebugExtension[PARAM any] interface {
 	Debug(msg string, param ...PARAM)
+}
+
+type LoggerExtension[PARAM any] interface {
+	LoggerDebugExtension[PARAM]
 	Info(msg string, param ...PARAM)
 	Warn(msg string, param ...PARAM)
 	Error(msg string, param ...PARAM)

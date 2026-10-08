@@ -1,4 +1,4 @@
-package pool
+package connection
 
 import (
 	"context"
@@ -6,65 +6,22 @@ import (
 	"oncecall/pool/internal/utils"
 	"oncecall/pool/types"
 	"reflect"
-
 	"strconv"
 	"strings"
-	"time"
-
-	"oncecall/define"
 
 	"github.com/redis/go-redis/v9"
 )
 
-type redisConnPool struct {
+type RedisConn struct {
 	commonUtils utils.CommonUtils
-	conn        *redis.Client
-	name        string
-
-	conf *types.ConnConfig
+	conn        *redis.Conn
 }
 
-func (r *redisConnPool) Alloc() (all int, used int, idle int) {
-	//TODO implement me
-	panic("implement me")
+func NewRedisConn(conn *redis.Conn) types.Conn {
+	return &RedisConn{conn: conn}
 }
 
-func newRedisConnPool(info *types.ConnConfig) (privateConnPool, error) {
-	if info.DBType != string(define.REDIS) {
-		return nil, errlist.ErrG.NewError(nil, "[name:%s] - not support redis dbtype(%s)", info.Name, info.DBType)
-	}
-
-	_, convertErr := strconv.Atoi(info.Name)
-	if convertErr != nil {
-		return nil, errlist.ErrG.NewError(convertErr, "[name:%s] - %s", info.Name)
-	}
-
-	url, err := getConnUrl(info)
-	if err != nil {
-		return nil, errlist.ErrG.NewError(err, "not exists redis url")
-	}
-
-	opt, optErr := redis.ParseURL(url)
-	if optErr != nil {
-		return nil, errlist.ErrG.NewError(optErr, "not exists redis url")
-	}
-
-	opt.MaxActiveConns = info.MaxConn
-	opt.PoolSize = info.MaxConn
-	opt.ConnMaxIdleTime = time.Second * 60
-	client := redis.NewClient(opt)
-
-	return &redisConnPool{
-		conn: client,
-		name: info.Name,
-		conf: info,
-	}, nil
-}
-
-func (r *redisConnPool) GetConfig() types.ConnConfig {
-	return *r.conf
-}
-func (r *redisConnPool) RunExecute(ctx context.Context, arg *types.Args) error {
+func (r *RedisConn) RunExecute(ctx context.Context, arg *types.Args) error {
 	trimQuery := strings.ReplaceAll(arg.Query, "\n", "")
 	trimQuery = strings.ReplaceAll(trimQuery, "\r", "")
 	if arg.Args == nil || len(arg.Args) <= 0 {
@@ -109,7 +66,7 @@ func (r *redisConnPool) RunExecute(ctx context.Context, arg *types.Args) error {
 	return nil
 }
 
-func (r *redisConnPool) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, err error) {
+func (r *RedisConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, err error) {
 	trimQuery := strings.ReplaceAll(arg.Query, "\n", "")
 	trimQuery = strings.ReplaceAll(trimQuery, "\r", "")
 	if arg.Args == nil || len(arg.Args) <= 0 {
@@ -122,7 +79,7 @@ func (r *redisConnPool) RunQuery(ctx context.Context, arg *types.Args) (rows [][
 	}
 
 	if arg.IsTransaction {
-		return nil, nil, errlist.ErrG.NewError(nil, "ERROR: [name:%s]  RunExecute exec(tran multi) not support", r.name)
+		return nil, nil, errlist.ErrG.NewError(nil, "ERROR: RunExecute exec(tran multi) not support")
 	}
 
 	param := arg.Args[0]
@@ -149,7 +106,7 @@ func (r *redisConnPool) RunQuery(ctx context.Context, arg *types.Args) (rows [][
 	return buf, name, nil
 }
 
-func (r *redisConnPool) parseOutputAny(val interface{}, idx int, m [][]any) error {
+func (r *RedisConn) parseOutputAny(val any, idx int, m [][]any) error {
 	var ret [][]any = m
 	var current = idx
 
@@ -188,7 +145,7 @@ func (r *redisConnPool) parseOutputAny(val interface{}, idx int, m [][]any) erro
 	return nil
 }
 
-func (r *redisConnPool) parseOutputStr(val interface{}, idx int, m [][]string) error {
+func (r *RedisConn) parseOutputStr(val interface{}, idx int, m [][]string) error {
 	var ret [][]string = m
 	var current = idx
 
@@ -226,6 +183,6 @@ func (r *redisConnPool) parseOutputStr(val interface{}, idx int, m [][]string) e
 	return nil
 }
 
-func (r *redisConnPool) Close() error {
+func (r *RedisConn) Close() error {
 	return r.conn.Close()
 }

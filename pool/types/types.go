@@ -2,6 +2,7 @@ package types
 
 import (
 	"context"
+	"io"
 )
 
 type Args struct {
@@ -22,9 +23,15 @@ type ConnConfig struct {
 	OptionMap map[string]any `toml:"option"`
 }
 
+type Conn interface {
+	RunExecute(ctx context.Context, arg *Args) error
+	RunQuery(ctx context.Context, arg *Args) (rows [][]any, name []string, err error)
+	io.Closer
+}
+
 type ConnPoolInterface interface {
 	RunExecute(ctx context.Context, arg *Args) error
 	RunQuery(ctx context.Context, arg *Args) (rows [][]any, name []string, err error)
 	GetConfig() ConnConfig
-	Close() error
+	io.Closer
 }

@@ -38,7 +38,7 @@ type LocalShConn struct {
 	}
 }
 
-func NewLocalShConn(isInteractive bool, execPath, outputSplitChar, outputNewlineChar, inputNextLineChar, inputDivisionChar string, args ...string) (*LocalShConn, error) {
+func NewLocalShConn(isInteractive bool, execPath, outputSplitChar, outputNewlineChar, inputNextLineChar, inputDivisionChar string, args ...string) (types.Conn, error) {
 	c := &LocalShConn{
 		isCloseFlag:       atomic.Bool{},
 		splitChar:         outputSplitChar,
