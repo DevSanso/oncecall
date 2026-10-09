@@ -2,48 +2,19 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	_ "net/http/pprof"
-	"oncecall/cmd/oncecall_query/cfg"
 	"oncecall/cmd/oncecall_query/executor"
 	"oncecall/utils"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
-
-	"oncecall/initialize"
 
 	"go.uber.org/zap"
 )
 
-var (
-	cfgDir          = flag.String("cfgPath", "../cfg", "config Dir")
-	updateTimeoutMs = flag.Int("updateTimeoutMs", 10000, "exec Update timeout ms")
-	fetchTimeoutMs  = flag.Int("fetchTimeoutMs", 10000, "exec fetch timeout ms")
-	loopIntervalSec = flag.Int("loopIntervalSec", 5, "exec loop interval sec")
-)
-
-func readProcConfig() (*cfg.ProcessConfig, error) {
-	return cfg.GetManageConfTomlFromFile(filepath.Join(*cfgDir, "oncecall.query.toml"))
-}
-
 func main() {
-	deferFn, err := initialize.InitProc()
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
-	defer deferFn()
-
-	procCfg, cfgErr := readProcConfig()
-	if cfgErr != nil {
-		fmt.Println(cfgErr.Error())
-		return
-	}
-
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	execCtx, cancelFn := context.WithCancel(context.Background())

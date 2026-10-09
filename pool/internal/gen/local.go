@@ -13,15 +13,15 @@ import (
 type localGenerator struct {
 	info types.ConnConfig
 
-	interactive bool
-	outputSplitChar string
+	interactive       bool
+	outputSplitChar   string
 	outputNewlineChar string
 	inputNextLineChar string
 	inputDivisionChar string
-	args []string
+	args              []string
 }
 
-func NewLocalGenerator(info types.ConnConfig, lExtension log.LoggerExtension[any]) (Generator, error) {
+func NewLocalGenerator(info types.ConnConfig, lExtension log.LoggerLogExtension[any]) (Generator, error) {
 	var exists bool
 	var interactiveOpt, outputSplitCharOpt, outputNewlineCharOpt, inputNextLineCharOpt, inputDivisionCharOpt, argsOpt any
 
@@ -58,20 +58,18 @@ func NewLocalGenerator(info types.ConnConfig, lExtension log.LoggerExtension[any
 	}
 
 	return &localGenerator{
-		info : info,
-		interactive: interactiveOpt.(bool),
-		outputSplitChar: outputSplitCharOpt.(string),
+		info:              info,
+		interactive:       interactiveOpt.(bool),
+		outputSplitChar:   outputSplitCharOpt.(string),
 		outputNewlineChar: outputNewlineCharOpt.(string),
 		inputNextLineChar: inputNextLineCharOpt.(string),
 		inputDivisionChar: inputDivisionCharOpt.(string),
-		args: args,
-
+		args:              args,
 	}, nil
 
 }
 
 func (l *localGenerator) Gen(ctx context.Context, l2 log.LoggerDebugExtension[any]) (types.Conn, error) {
 	return connection.NewLocalShConn(
-		l.interactive, l.info.Name, l.outputSplitChar, l.outputNewlineChar, l.inputNextLineChar, l.inputDivisionChar, l.args... )
+		l.interactive, l.info.Name, l.outputSplitChar, l.outputNewlineChar, l.inputNextLineChar, l.inputDivisionChar, l.args...)
 }
-

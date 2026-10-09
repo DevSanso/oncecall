@@ -11,7 +11,7 @@ type kafkaGenerator struct {
 	info types.ConnConfig
 }
 
-func NewKafkaGenerator(info types.ConnConfig, lExtension log.LoggerExtension[any]) (Generator, error) {
+func NewKafkaGenerator(info types.ConnConfig, lExtension log.LoggerLogExtension[any]) (Generator, error) {
 	return &kafkaGenerator{info: info}, nil
 }
 

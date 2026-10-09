@@ -28,7 +28,7 @@ type SimplePoolExtension[T io.Closer, R any] struct {
 	Gen     func(context.Context, log.LoggerDebugExtension[any]) (T, error)
 	Max     int
 	Metric  metric.MetricExtension
-	Logger  log.LoggerExtension[any]
+	Logger  log.LoggerLogExtension[any]
 	Context context.Context
 
 	once      sync.Once

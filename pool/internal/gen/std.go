@@ -16,7 +16,7 @@ type stdGenerator struct {
 	db   *sql.DB
 }
 
-func NewStdGenerator(info types.ConnConfig, lExtension log.LoggerExtension[any]) (Generator, error) {
+func NewStdGenerator(info types.ConnConfig, lExtension log.LoggerLogExtension[any]) (Generator, error) {
 	var db *sql.DB = nil
 	var dbErr error = nil
 

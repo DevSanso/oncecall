@@ -13,11 +13,11 @@ import (
 )
 
 type cassandraGenerator struct {
-	info types.ConnConfig
+	info    types.ConnConfig
 	cluster *gocql.ClusterConfig
 }
 
-func NewCassandraGenerator(info types.ConnConfig, lExtension log.LoggerExtension[any]) (Generator, error) {
+func NewCassandraGenerator(info types.ConnConfig, lExtension log.LoggerLogExtension[any]) (Generator, error) {
 	hosts := strings.Split(info.Server, ",")
 	port := strings.Split(info.Server, ":")
 	if len(hosts) <= 0 || len(port) < 2 {
@@ -48,4 +48,3 @@ func (c *cassandraGenerator) Gen(ctx context.Context, l log.LoggerDebugExtension
 		return connection.NewCassandraConn(sess)
 	}
 }
-

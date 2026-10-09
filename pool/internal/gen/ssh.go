@@ -12,14 +12,14 @@ import (
 )
 
 type sshGenerator struct {
-	info types.ConnConfig
+	info   types.ConnConfig
 	client *ssh.Client
 
 	newlineChar string
-	splitChar string
+	splitChar   string
 }
 
-func NewSSHGenerator(info types.ConnConfig, lExtension log.LoggerExtension[any]) (Generator, error) {
+func NewSSHGenerator(info types.ConnConfig, lExtension log.LoggerLogExtension[any]) (Generator, error) {
 	var exists bool
 	var outputSplitCharOpt, outputNewlineCharOpt any
 
@@ -33,9 +33,9 @@ func NewSSHGenerator(info types.ConnConfig, lExtension log.LoggerExtension[any])
 	}
 
 	return &sshGenerator{
-		info : info,
+		info:        info,
 		newlineChar: outputSplitCharOpt.(string),
-		splitChar: outputNewlineCharOpt.(string),
+		splitChar:   outputNewlineCharOpt.(string),
 	}, nil
 
 }
@@ -48,4 +48,3 @@ func (s *sshGenerator) Gen(ctx context.Context, l log.LoggerDebugExtension[any])
 
 	return connection.NewSshConn(sess, s.newlineChar, s.splitChar), nil
 }
-

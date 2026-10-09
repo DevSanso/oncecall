@@ -17,7 +17,7 @@ type redisGenerator struct {
 	p    *redis.Client
 }
 
-func NewRedisGenerator(info types.ConnConfig, lExtension log.LoggerExtension[any]) (Generator, error) {
+func NewRedisGenerator(info types.ConnConfig, lExtension log.LoggerLogExtension[any]) (Generator, error) {
 	db, convOk := strconv.Atoi(info.Name)
 	if convOk != nil {
 		return nil, errlist.ErrG.NewError(prefix.ParseError, "db is not number : %s", info.Name)

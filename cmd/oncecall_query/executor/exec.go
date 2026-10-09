@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/md5"
 	"oncecall/cmd/oncecall_query/cfg"
+	"oncecall/cmd/oncecall_query/global"
 	"oncecall/errlist"
 	"oncecall/pool"
 	"oncecall/pool/types"
@@ -190,7 +191,8 @@ func (e *Executor) loadConnPool() error {
 			return errlist.ErrG.NewError(optionErr, "load conn option failed : %s", identifier)
 		}
 
-		newPool, newPoolErr := pool.GetConnPool(&types.ConnConfig{
+
+		newPool, newPoolErr := pool.NewConnPool(context.Background(), identifier, types.ConnConfig{
 			DBType:    dbtype,
 			Name:      name,
 			Server:    server,
@@ -198,7 +200,7 @@ func (e *Executor) loadConnPool() error {
 			Password:  password,
 			MaxConn:   maxConn,
 			OptionMap: optionMap,
-		})
+		}, global.Metric.Metric, global.Log.ConnLogExtension, global.Log.RawLogExtension)
 
 		if newPoolErr != nil {
 			return errlist.ErrG.NewError(newPoolErr, "identifier : %s", identifier)

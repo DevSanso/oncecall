@@ -15,20 +15,20 @@ type retWrapper struct {
 	rows    [][]any
 	colName []string
 }
-type ConnPool struct {
+type connPool struct {
 	ident string
 	conf  types.ConnConfig
 
 	connGenerator gen.Generator
 
-	lExtension log.LoggerExtension[any]
+	lExtension log.LoggerLogExtension[any]
 	pExtension pool.PoolExtension[types.Conn, retWrapper]
 }
 
 func NewConnPool(ctx context.Context, ident string, info types.ConnConfig,
 	metric metric.MetricExtension,
-	poolExtensionLogger log.LoggerExtension[any],
-	rawPoolLogger log.LoggerExtension[any]) (types.ConnPoolInterface, error) {
+	poolExtensionLogger log.LoggerLogExtension[any],
+	rawPoolLogger log.LoggerLogExtension[any]) (types.ConnPoolInterface, error) {
 	var g gen.Generator
 	var gErr error
 	switch define.POOLType(info.DBType) {
@@ -39,8 +39,10 @@ func NewConnPool(ctx context.Context, ident string, info types.ConnConfig,
 		g, gErr = gen.NewLocalGenerator(info, rawPoolLogger)
 	case define.KAFKA:
 		g, gErr = gen.NewKafkaGenerator(info, rawPoolLogger)
-	case define.SSH: g, gErr = gen.NewSSHGenerator(info, rawPoolLogger)
-	case define.CASSANDRA: g, gErr = gen.NewCassandraGenerator(info, rawPoolLogger)
+	case define.SSH:
+		g, gErr = gen.NewSSHGenerator(info, rawPoolLogger)
+	case define.CASSANDRA:
+		g, gErr = gen.NewCassandraGenerator(info, rawPoolLogger)
 	default:
 
 		g, gErr = gen.NewStdGenerator(info, rawPoolLogger)
@@ -50,7 +52,7 @@ func NewConnPool(ctx context.Context, ident string, info types.ConnConfig,
 		return nil, errlist.ErrG.NewError(gErr, "new conn pool failed ident:%s", ident)
 	}
 
-	cp := &ConnPool{
+	cp := &connPool{
 		ident:         ident,
 		conf:          info,
 		connGenerator: g,
@@ -73,7 +75,7 @@ func NewConnPool(ctx context.Context, ident string, info types.ConnConfig,
 	return cp, nil
 }
 
-func (c *ConnPool) RunExecute(ctx context.Context, arg *types.Args) error {
+func (c *connPool) RunExecute(ctx context.Context, arg *types.Args) error {
 	_, err := c.pExtension.Use(func(data types.Conn) (retWrapper, error) {
 		err := data.RunExecute(ctx, arg)
 		if err != nil {
@@ -90,7 +92,7 @@ func (c *ConnPool) RunExecute(ctx context.Context, arg *types.Args) error {
 	return err
 }
 
-func (c *ConnPool) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, err error) {
+func (c *connPool) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, err error) {
 	ret, err := c.pExtension.Use(func(data types.Conn) (retWrapper, error) {
 		err := data.RunExecute(ctx, arg)
 		if err != nil {
@@ -109,25 +111,10 @@ func (c *ConnPool) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any,
 	return ret.rows, ret.colName, nil
 }
 
-func (c *ConnPool) GetConfig() types.ConnConfig {
+func (c *connPool) GetConfig() types.ConnConfig {
 	return c.conf
 }
 
-func (c *ConnPool) Close() error {
+func (c *connPool) Close() error {
 	return c.pExtension.Close()
-}
-
-func GetConnPool(info *types.ConnConfig) (types.ConnPoolInterface, error) {
-	var p types.ConnPoolInterface
-	var err error
-
-	switch info.DBType {
-
-	}
-
-	if err != nil {
-		return nil, errlist.ErrG.NewError(err, "NewConnPool Failed")
-	}
-
-	return p, nil
 }
