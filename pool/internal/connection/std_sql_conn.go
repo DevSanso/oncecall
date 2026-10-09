@@ -9,15 +9,15 @@ import (
 	"strings"
 )
 
-type StdSqlConn struct {
+type stdSqlConn struct {
 	conn *sql.Conn
 }
 
 func NewStdSqlConn(conn *sql.Conn) types.Conn {
-	return &StdSqlConn{conn: conn}
+	return &stdSqlConn{conn: conn}
 }
 
-func (*StdSqlConn) isTypeText(t string) bool {
+func (*stdSqlConn) isTypeText(t string) bool {
 	li := []string{
 		"VARCHAR",
 		"TEXT",
@@ -36,7 +36,7 @@ func (*StdSqlConn) isTypeText(t string) bool {
 	return false
 }
 
-func (*StdSqlConn) isTypeBigInt(t string) bool {
+func (*stdSqlConn) isTypeBigInt(t string) bool {
 	li := []string{
 		"INT8",
 		"BIGINT",
@@ -45,7 +45,7 @@ func (*StdSqlConn) isTypeBigInt(t string) bool {
 	return slices.Index(li, strings.ToUpper(t)) != -1
 }
 
-func (*StdSqlConn) isTypeSInt(t string) bool {
+func (*stdSqlConn) isTypeSInt(t string) bool {
 	li := []string{
 		"INT",
 		"INT2",
@@ -56,7 +56,7 @@ func (*StdSqlConn) isTypeSInt(t string) bool {
 	return slices.Index(li, strings.ToUpper(t)) != -1
 }
 
-func (*StdSqlConn) isTypeDouble(t string) bool {
+func (*stdSqlConn) isTypeDouble(t string) bool {
 	li := []string{
 		"DOUBLE",
 		"FLOAT",
@@ -67,7 +67,7 @@ func (*StdSqlConn) isTypeDouble(t string) bool {
 	return slices.Index(li, strings.ToUpper(t)) != -1
 }
 
-func (*StdSqlConn) isTypeBytes(t string) bool {
+func (*stdSqlConn) isTypeBytes(t string) bool {
 	li := []string{
 		"BLOB",
 	}
@@ -75,7 +75,7 @@ func (*StdSqlConn) isTypeBytes(t string) bool {
 	return slices.Index(li, strings.ToUpper(t)) != -1
 }
 
-func (s *StdSqlConn) RunExecute(ctx context.Context, arg *types.Args) error {
+func (s *stdSqlConn) RunExecute(ctx context.Context, arg *types.Args) error {
 	conn := s.conn
 
 	if !arg.IsTransaction {
@@ -131,7 +131,7 @@ func (s *StdSqlConn) RunExecute(ctx context.Context, arg *types.Args) error {
 	return nil
 }
 
-func (s *StdSqlConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, err error) {
+func (s *stdSqlConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, err error) {
 	conn := s.conn
 
 	if arg.IsTransaction {
@@ -209,6 +209,6 @@ func (s *StdSqlConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]an
 	return ret, name, nil
 }
 
-func (s *StdSqlConn) Close() error {
+func (s *stdSqlConn) Close() error {
 	return s.conn.Close()
 }

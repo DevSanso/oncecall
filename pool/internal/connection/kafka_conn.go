@@ -11,35 +11,35 @@ import (
 	"github.com/IBM/sarama"
 )
 
-type KafkaConn struct {
+type kafkaConn struct {
 	consumer sarama.Consumer
 	producer sarama.SyncProducer
 
 	consumerOffset int64
-	topic string
+	topic          string
 }
 
 func NewKafkaConn(addr string, topic string) (types.Conn, error) {
-	c,cErr := sarama.NewConsumer([]string{addr}, nil)
+	c, cErr := sarama.NewConsumer([]string{addr}, nil)
 	if cErr != nil {
 		return nil, errlist.ErrG.NewError(cErr, "kafka consumer get failed")
 	}
-	
-	p,pErr := sarama.NewSyncProducer([]string{addr}, nil)
+
+	p, pErr := sarama.NewSyncProducer([]string{addr}, nil)
 	if pErr != nil {
 		_ = c.Close()
 		return nil, errlist.ErrG.NewError(cErr, "kafka consumer get failed")
 	}
-	
-	return &KafkaConn{
-		consumer: c,
-		producer: p,
-		topic: topic,
+
+	return &kafkaConn{
+		consumer:       c,
+		producer:       p,
+		topic:          topic,
 		consumerOffset: sarama.OffsetNewest,
 	}, nil
 }
 
-func (k *KafkaConn) RunExecute(ctx context.Context, arg *types.Args) error {
+func (k *kafkaConn) RunExecute(ctx context.Context, arg *types.Args) error {
 	err := k.WriteData(k.topic, arg)
 	if err != nil {
 		return errlist.ErrG.NewError(err, "write data failed")
@@ -47,7 +47,7 @@ func (k *KafkaConn) RunExecute(ctx context.Context, arg *types.Args) error {
 	return nil
 }
 
-func (k *KafkaConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, err error) {
+func (k *kafkaConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, err error) {
 	var res struct {
 		Count int `json:"count"`
 	}
@@ -63,13 +63,13 @@ func (k *KafkaConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any
 	return rows, name, nil
 }
 
-func (k *KafkaConn) Close() error {
+func (k *kafkaConn) Close() error {
 	_ = k.consumer.Close()
 	_ = k.producer.Close()
 	return nil
 }
 
-func (k *KafkaConn) WriteData(topicName string, arg *types.Args) error {
+func (k *kafkaConn) WriteData(topicName string, arg *types.Args) error {
 	messages := make([]*sarama.ProducerMessage, 0, len(arg.Args))
 
 	for idx, data := range arg.Args {
@@ -91,9 +91,9 @@ func (k *KafkaConn) WriteData(topicName string, arg *types.Args) error {
 			return errlist.ErrG.NewError(prefix.NotMatchingError, "convert failed data (only support string, []byte)%v", data)
 		}
 
-		messages = append(messages, &sarama.ProducerMessage {
+		messages = append(messages, &sarama.ProducerMessage{
 			Topic: topicName,
-			Value : messageValue,
+			Value: messageValue,
 		})
 	}
 
@@ -113,7 +113,6 @@ func (k *KafkaConn) WriteData(topicName string, arg *types.Args) error {
 			return errlist.ErrG.NewError(commitTxn, "txn is commit failed")
 		}
 
-
 	} else {
 		if sendErr := k.producer.SendMessages(messages); sendErr != nil {
 			return errlist.ErrG.NewError(sendErr, "send error, topic :%s", topicName)
@@ -123,7 +122,7 @@ func (k *KafkaConn) WriteData(topicName string, arg *types.Args) error {
 	return nil
 }
 
-func (k *KafkaConn) ReadData(ctx context.Context, topicName string, count int, offset int64) ([][]any, []string, int64, error) {
+func (k *kafkaConn) ReadData(ctx context.Context, topicName string, count int, offset int64) ([][]any, []string, int64, error) {
 	data := make([][]any, 5)
 
 	data[0] = make([]any, 0, count/10)
@@ -137,7 +136,7 @@ func (k *KafkaConn) ReadData(ctx context.Context, topicName string, count int, o
 	key := data[3]
 	value := data[4]
 
-	c :=  k.consumer
+	c := k.consumer
 
 	partitions, partErr := c.Partitions(topicName)
 	if partErr != nil {
@@ -178,7 +177,7 @@ func (k *KafkaConn) ReadData(ctx context.Context, topicName string, count int, o
 
 		for _, ch := range errChannels {
 			select {
-			case errMsg := <- ch:
+			case errMsg := <-ch:
 				return nil, nil, offset, errlist.ErrG.NewError(errMsg.Err, "consume send error string, topic :%s", errMsg.Topic)
 			default:
 			}
@@ -186,7 +185,7 @@ func (k *KafkaConn) ReadData(ctx context.Context, topicName string, count int, o
 
 		for _, ch := range channels {
 			select {
-			case sendMsg := <- ch:
+			case sendMsg := <-ch:
 				timestamp = append(timestamp, sendMsg.Timestamp.UnixMilli())
 				topic = append(topic, sendMsg.Topic)
 				partition = append(partition, int(sendMsg.Partition))

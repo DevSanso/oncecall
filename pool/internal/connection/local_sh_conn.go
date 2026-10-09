@@ -13,7 +13,7 @@ import (
 	"sync/atomic"
 )
 
-type LocalShConn struct {
+type localShConn struct {
 	connUtils     utils.ShUtils
 	isCloseFlag   atomic.Bool
 	isInteractive bool
@@ -39,7 +39,7 @@ type LocalShConn struct {
 }
 
 func NewLocalShConn(isInteractive bool, execPath, outputSplitChar, outputNewlineChar, inputNextLineChar, inputDivisionChar string, args ...string) (types.Conn, error) {
-	c := &LocalShConn{
+	c := &localShConn{
 		isCloseFlag:       atomic.Bool{},
 		splitChar:         outputSplitChar,
 		newlineChar:       outputNewlineChar,
@@ -78,7 +78,7 @@ func NewLocalShConn(isInteractive bool, execPath, outputSplitChar, outputNewline
 
 }
 
-func (l *LocalShConn) RunExecute(ctx context.Context, arg *types.Args) error {
+func (l *localShConn) RunExecute(ctx context.Context, arg *types.Args) error {
 	if l.isCloseFlag.Load() {
 		return errlist.ErrG.NewError(prefix.ClosedError, "exec closed : %s", l.interactive.proc.Path)
 	}
@@ -107,7 +107,7 @@ func (l *LocalShConn) RunExecute(ctx context.Context, arg *types.Args) error {
 	return nil
 }
 
-func (l *LocalShConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, err error) {
+func (l *localShConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, err error) {
 	if l.isCloseFlag.Load() {
 		return nil, nil, errlist.ErrG.NewError(prefix.ClosedError, "exec closed : %s", l.interactive.proc.Path)
 	}
@@ -141,7 +141,7 @@ func (l *LocalShConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]a
 	return
 }
 
-func (l *LocalShConn) Close() error {
+func (l *localShConn) Close() error {
 	if l.isCloseFlag.Load() {
 		return errlist.ErrG.NewError(prefix.ClosedError, "exec closed : %s", l.interactive.proc.Path)
 	}

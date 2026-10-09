@@ -39,6 +39,8 @@ func NewConnPool(ctx context.Context, ident string, info types.ConnConfig,
 		g, gErr = gen.NewLocalGenerator(info, rawPoolLogger)
 	case define.KAFKA:
 		g, gErr = gen.NewKafkaGenerator(info, rawPoolLogger)
+	case define.SSH: g, gErr = gen.NewSSHGenerator(info, rawPoolLogger)
+	case define.CASSANDRA: g, gErr = gen.NewCassandraGenerator(info, rawPoolLogger)
 	default:
 
 		g, gErr = gen.NewStdGenerator(info, rawPoolLogger)
@@ -120,11 +122,7 @@ func GetConnPool(info *types.ConnConfig) (types.ConnPoolInterface, error) {
 	var err error
 
 	switch info.DBType {
-	case string(define.SSH):
-		p, err = newNonInteractiveSSHConnPool(info)
-	case string(define.CASSANDRA):
 
-		p, err = newCassandraConnPool(info)
 	}
 
 	if err != nil {

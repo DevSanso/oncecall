@@ -12,16 +12,16 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type RedisConn struct {
+type redisConn struct {
 	commonUtils utils.CommonUtils
 	conn        *redis.Conn
 }
 
 func NewRedisConn(conn *redis.Conn) types.Conn {
-	return &RedisConn{conn: conn}
+	return &redisConn{conn: conn}
 }
 
-func (r *RedisConn) RunExecute(ctx context.Context, arg *types.Args) error {
+func (r *redisConn) RunExecute(ctx context.Context, arg *types.Args) error {
 	trimQuery := strings.ReplaceAll(arg.Query, "\n", "")
 	trimQuery = strings.ReplaceAll(trimQuery, "\r", "")
 	if arg.Args == nil || len(arg.Args) <= 0 {
@@ -66,7 +66,7 @@ func (r *RedisConn) RunExecute(ctx context.Context, arg *types.Args) error {
 	return nil
 }
 
-func (r *RedisConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, err error) {
+func (r *redisConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, err error) {
 	trimQuery := strings.ReplaceAll(arg.Query, "\n", "")
 	trimQuery = strings.ReplaceAll(trimQuery, "\r", "")
 	if arg.Args == nil || len(arg.Args) <= 0 {
@@ -106,7 +106,7 @@ func (r *RedisConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any
 	return buf, name, nil
 }
 
-func (r *RedisConn) parseOutputAny(val any, idx int, m [][]any) error {
+func (r *redisConn) parseOutputAny(val any, idx int, m [][]any) error {
 	var ret [][]any = m
 	var current = idx
 
@@ -145,7 +145,7 @@ func (r *RedisConn) parseOutputAny(val any, idx int, m [][]any) error {
 	return nil
 }
 
-func (r *RedisConn) parseOutputStr(val interface{}, idx int, m [][]string) error {
+func (r *redisConn) parseOutputStr(val interface{}, idx int, m [][]string) error {
 	var ret [][]string = m
 	var current = idx
 
@@ -183,6 +183,6 @@ func (r *RedisConn) parseOutputStr(val interface{}, idx int, m [][]string) error
 	return nil
 }
 
-func (r *RedisConn) Close() error {
+func (r *redisConn) Close() error {
 	return r.conn.Close()
 }
