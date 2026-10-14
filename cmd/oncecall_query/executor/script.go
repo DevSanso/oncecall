@@ -155,7 +155,7 @@ func newScriptThread(key generic.Pair[string, string], state *execSharedState) *
 	}
 }
 
-func (s *scriptThread) init(self types.ConnPoolInterface, ctx context.Context, cfg *cfg.ScriptConfig) error {
+func (s *scriptThread) init(self types.ConnPoolCloser, ctx context.Context, cfg *cfg.ScriptConfig) error {
 	if cfg.Init == nil {
 		return nil
 	}
@@ -360,7 +360,7 @@ func (*scriptThread) allocCurrentData(idx int, rows [][]any, cols []string, buf 
 	return nil
 }
 
-func (s *scriptThread) getDataFromConn(ctx context.Context, p types.ConnPoolInterface, scriptPlan *cfg.ScriptQueryReadPlan, param [][]any) ([][]any, []string, bool, error) {
+func (s *scriptThread) getDataFromConn(ctx context.Context, p types.ConnPoolCloser, scriptPlan *cfg.ScriptQueryReadPlan, param [][]any) ([][]any, []string, bool, error) {
 	var data [][]any
 	var dCols []string
 	var nextRun = false

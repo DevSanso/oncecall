@@ -29,9 +29,13 @@ type Conn interface {
 	io.Closer
 }
 
-type ConnPoolInterface interface {
+type ConnPool interface {
 	RunExecute(ctx context.Context, arg *Args) error
 	RunQuery(ctx context.Context, arg *Args) (rows [][]any, name []string, err error)
 	GetConfig() ConnConfig
+}
+
+type ConnPoolCloser interface {
+	ConnPool
 	io.Closer
 }

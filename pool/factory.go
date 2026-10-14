@@ -9,6 +9,7 @@ import (
 	"oncecall/extension/pool"
 	"oncecall/pool/internal/gen"
 	"oncecall/pool/types"
+	"time"
 )
 
 type retWrapper struct {
@@ -27,25 +28,26 @@ type connPool struct {
 
 func NewConnPool(ctx context.Context, ident string, info types.ConnConfig,
 	metric metric.MetricExtension,
-	poolExtensionLogger log.LoggerLogExtension[any],
-	rawPoolLogger log.LoggerLogExtension[any]) (types.ConnPoolInterface, error) {
+	poolLogExtension log.LoggerLogExtension[any],
+	genLogExtension log.LoggerLogExtension[any],
+	connLogExtension log.LoggerLogExtension[any]) (types.ConnPoolCloser, error) {
 	var g gen.Generator
 	var gErr error
 	switch define.POOLType(info.DBType) {
 	case define.REDIS:
 
-		g, gErr = gen.NewRedisGenerator(info, rawPoolLogger)
+		g, gErr = gen.NewRedisGenerator(info, connLogExtension)
 	case define.LOCAL:
-		g, gErr = gen.NewLocalGenerator(info, rawPoolLogger)
+		g, gErr = gen.NewLocalGenerator(info, connLogExtension)
 	case define.KAFKA:
-		g, gErr = gen.NewKafkaGenerator(info, rawPoolLogger)
+		g, gErr = gen.NewKafkaGenerator(info, connLogExtension)
 	case define.SSH:
-		g, gErr = gen.NewSSHGenerator(info, rawPoolLogger)
+		g, gErr = gen.NewSSHGenerator(info, connLogExtension)
 	case define.CASSANDRA:
-		g, gErr = gen.NewCassandraGenerator(info, rawPoolLogger)
+		g, gErr = gen.NewCassandraGenerator(info, connLogExtension)
 	default:
 
-		g, gErr = gen.NewStdGenerator(info, rawPoolLogger)
+		g, gErr = gen.NewStdGenerator(info, connLogExtension)
 	}
 
 	if gErr != nil {
@@ -56,7 +58,7 @@ func NewConnPool(ctx context.Context, ident string, info types.ConnConfig,
 		ident:         ident,
 		conf:          info,
 		connGenerator: g,
-		lExtension:    poolExtensionLogger,
+		lExtension:    poolLogExtension,
 	}
 
 	cp.pExtension = &pool.SimplePoolExtension[types.Conn, retWrapper]{
@@ -66,16 +68,20 @@ func NewConnPool(ctx context.Context, ident string, info types.ConnConfig,
 		},
 		Max:     info.MaxConn,
 		Metric:  metric,
-		Logger:  poolExtensionLogger,
+		Logger:  genLogExtension,
 		Context: ctx,
 	}
 
-	poolExtensionLogger.Debug("create conn pool (ident:%s,server:%s,dbtype:%s)", ident, info.Server, info.DBType)
+	poolLogExtension.Debug("create conn pool (ident:%s,server:%s,dbtype:%s)", ident, info.Server, info.DBType)
 
 	return cp, nil
 }
 
 func (c *connPool) RunExecute(ctx context.Context, arg *types.Args) error {
+	c.lExtension.Debug("Try RunExecute (ident:%s, query:%s)", c.ident, arg.Query)
+
+	now := time.Now()
+
 	_, err := c.pExtension.Use(func(data types.Conn) (retWrapper, error) {
 		err := data.RunExecute(ctx, arg)
 		if err != nil {
@@ -85,14 +91,17 @@ func (c *connPool) RunExecute(ctx context.Context, arg *types.Args) error {
 	})
 
 	if err == nil {
-		c.lExtension.Debug("RunExecute Success: (ident:%s, query:%s, isTran:%v)",
-			c.ident, arg.Query, arg.IsTransaction)
+		epel := time.Now().Sub(now).Seconds()
+		c.lExtension.Debug("RunExecute Success: (ident:%s, epel:%f, query:%s, isTran:%v)",
+			c.ident, epel, arg.Query, arg.IsTransaction)
 	}
 
 	return err
 }
 
 func (c *connPool) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, err error) {
+	c.lExtension.Debug("Try RunQuery (ident:%s, query:%s)", c.ident, arg.Query)
+	now := time.Now()
 	ret, err := c.pExtension.Use(func(data types.Conn) (retWrapper, error) {
 		err := data.RunExecute(ctx, arg)
 		if err != nil {
@@ -104,9 +113,9 @@ func (c *connPool) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any,
 	if err != nil {
 		return nil, nil, err
 	}
-
-	c.lExtension.Debug("RunQuery Success: (ident:%s, rows:%d, cols:%d, query:%s, isTran:%v)",
-		c.ident, len(ret.rows), len(ret.rows), arg.Query, arg.IsTransaction)
+	epel := time.Now().Sub(now).Seconds()
+	c.lExtension.Debug("RunQuery Success: (ident:%s, epel:%f, rows:%d, cols:%d, query:%s, isTran:%v)",
+		c.ident, epel, len(ret.rows), len(ret.rows), arg.Query, arg.IsTransaction)
 
 	return ret.rows, ret.colName, nil
 }

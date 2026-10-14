@@ -11,7 +11,7 @@ import (
 )
 
 type execPrivateState struct {
-	manage types.ConnPoolInterface
+	manage types.ConnPoolCloser
 
 	logicMutex    sync.Mutex
 	DbListRaw     [][]any
@@ -27,7 +27,7 @@ type execPrivateState struct {
 
 type execSharedState struct {
 	executorContext context.Context
-	pMap            *generic.SyncMap[string, types.ConnPoolInterface]
+	pMap            *generic.SyncMap[string, types.ConnPoolCloser]
 	scriptMap       *generic.SyncMap[string, generic.Pair[[16]byte, *cfg.ScriptConfig]]
 	vmP             *generic.SyncPool[vm.Vm]
 
@@ -36,7 +36,7 @@ type execSharedState struct {
 
 func newExecSharedState() *execSharedState {
 	return &execSharedState{
-		pMap: generic.NewGenericSyncMap[string, types.ConnPoolInterface](),
+		pMap: generic.NewGenericSyncMap[string, types.ConnPoolCloser](),
 		vmP: generic.NewGenericSyncPool[vm.Vm](func() vm.Vm {
 			v := lua.NewLuaVM()
 			return v

@@ -7,10 +7,11 @@ import (
 
 var (
 	Log struct {
-		ConnLogExtension    log.LoggerExtension[any]
-		ScriptLogExtension    log.LoggerExtension[any]
-		ExecuteLogExtension log.LoggerExtension[any]
-		RawLogExtension log.LoggerExtension[any]
+		ConnLogExtension   log.LoggerExtension[any]
+		ScriptLogExtension log.LoggerExtension[any]
+		ManageLogExtension log.LoggerExtension[any]
+		QueryLogExtension  log.LoggerExtension[any]
+		GenLogExtension    log.LoggerExtension[any]
 	}
 
 	Metric struct {

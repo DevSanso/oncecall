@@ -105,7 +105,7 @@ func (e *Executor) delNotUseConnPool() error {
 
 	deleted := make([]string, 0, 3)
 
-	e.shared.pMap.Range(func(key string, _ types.ConnPoolInterface) bool {
+	e.shared.pMap.Range(func(key string, _ types.ConnPoolCloser) bool {
 		if !slices.Contains(identifiers, key) {
 			deleted = append(deleted, key)
 
@@ -191,7 +191,6 @@ func (e *Executor) loadConnPool() error {
 			return errlist.ErrG.NewError(optionErr, "load conn option failed : %s", identifier)
 		}
 
-
 		newPool, newPoolErr := pool.NewConnPool(context.Background(), identifier, types.ConnConfig{
 			DBType:    dbtype,
 			Name:      name,
@@ -200,7 +199,7 @@ func (e *Executor) loadConnPool() error {
 			Password:  password,
 			MaxConn:   maxConn,
 			OptionMap: optionMap,
-		}, global.Metric.Metric, global.Log.ConnLogExtension, global.Log.RawLogExtension)
+		}, global.Metric.Metric, global.Log.ConnLogExtension, global.Log.QueryLogExtension)
 
 		if newPoolErr != nil {
 			return errlist.ErrG.NewError(newPoolErr, "identifier : %s", identifier)
