@@ -65,11 +65,29 @@ func (e *ExecutorV1) disPatchRmStopTh() error {
 	for idx := range e.stopRunQ {
 		stop, exists := e.threadStopFnMap.Load(e.stopRunQ[idx])
 		if !exists {continue}
-
 		stop()
 	}
+
+	return nil
 }
+
+func (e *ExecutorV1) disPatchStartNewTh() error {
+	for idx := range e.newRunQ {
+		if isRun, exists := e.sharedState.isRunningThreadMap.Load(e.newRunQ[idx]); exists && isRun {
+			continue
+		}
+
+
+	}
+
+	return nil
+}
+
 func (e *ExecutorV1) DisPatch() error {
+	if err := e.disPatchRmStopTh(); err != nil {
+		return errlist.ErrG.NewError(err, "")
+	}
+
 
 }
 
