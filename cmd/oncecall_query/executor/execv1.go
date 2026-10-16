@@ -4,27 +4,37 @@ import (
 	"context"
 	"oncecall/cmd/oncecall_query/cfg"
 	selftype "oncecall/cmd/oncecall_query/executor/types"
+	"oncecall/cmd/oncecall_query/executor/plan"
 	"oncecall/cmd/oncecall_query/global"
 	"oncecall/errlist"
 	"oncecall/utils/generic"
 	"time"
 )
+type executeorV1IntervalSec int
 
+type executorV1PlanState struct {
+	existsPlanSet map[selftype.IdentKey]struct{}
+}
 type ExecutorV1 struct {
 	fetcher selftype.DbFetcher
 
-	newRunQ         []generic.Pair[string, string]
-	stopRunQ        []generic.Pair[string, string]
-	threadStopFnMap *generic.SyncMap[generic.Pair[string, string], context.CancelFunc]
+	newRunQ         []struct {
+		ident selftype.IdentKey
+		conf cfg.ScriptConfig
+	}
+	stopRunQ        []selftype.IdentKey
+	threadStopFnMap  map[selftype.IdentKey]context.CancelFunc
 	executorCancelFn context.CancelFunc
 
-	sharedState *execSharedState
+	sharedState selftype.SharedState
 
 	cache struct {
 		dbConf []cfg.ConnConfig
-		dbScriptLink []generic.Pair[string, string]
+		dbScriptLink []selftype.IdentKey
 		scriptConf []cfg.ScriptConfig
 	}
+
+	runPlanMap map[executeorV1IntervalSec] map[selftype.IdentKey]selftype.Plan
 }
 
 func (e *ExecutorV1) Update(timeoutMs int64) error {
@@ -34,7 +44,7 @@ func (e *ExecutorV1) Update(timeoutMs int64) error {
 }
 
 func (e *ExecutorV1) Fetch(timeoutMs int64) error {
-	ctx, cancelFn := context.WithTimeout(e.sharedState.executorContext, time.Duration(timeoutMs)*time.Millisecond)
+	ctx, cancelFn := context.WithTimeout(e.sharedState.GetContext(), time.Duration(timeoutMs)*time.Millisecond)
 	defer cancelFn()
 
 	if db, dbErr := e.fetcher.DbList(ctx, global.ManageP); dbErr != nil {
@@ -46,10 +56,9 @@ func (e *ExecutorV1) Fetch(timeoutMs int64) error {
 	if dbScriptLink, dbScriptErr := e.fetcher.DbAndScriptLink(ctx, global.ManageP); dbScriptErr != nil {
 		return errlist.ErrG.NewError(dbScriptErr, "update db script list failed")
 	} else {
-		e.cache.dbScriptLink = make([]generic.Pair[string, string], 0, len(dbScriptLink))
+		e.cache.dbScriptLink = make([]selftype.IdentKey, 0, len(dbScriptLink))
 		for idx := range dbScriptLink {
-			e.cache.dbScriptLink = append(e.cache.dbScriptLink, generic.Pair[string, string]{
-				First: dbScriptLink[idx].DbUUID, Second: dbScriptLink[idx].ScriptName})
+			e.cache.dbScriptLink = append(e.cache.dbScriptLink, selftype.NewIdentKey(dbScriptLink[idx].DbUUID, dbScriptLink[idx].ScriptName))
 		}
 	}
 
@@ -63,20 +72,23 @@ func (e *ExecutorV1) Fetch(timeoutMs int64) error {
 }
 func (e *ExecutorV1) disPatchRmStopTh() error {
 	for idx := range e.stopRunQ {
-		stop, exists := e.threadStopFnMap.Load(e.stopRunQ[idx])
+		stop, exists := e.threadStopFnMap[e.stopRunQ[idx]]
 		if !exists {continue}
 		stop()
+		delete(e.threadStopFnMap, e.stopRunQ[idx])
 	}
-
 	return nil
 }
 
 func (e *ExecutorV1) disPatchStartNewTh() error {
 	for idx := range e.newRunQ {
-		if isRun, exists := e.sharedState.isRunningThreadMap.Load(e.newRunQ[idx]); exists && isRun {
+		if isRun, exists := e.sharedState.GetThreadState(e.newRunQ[idx].ident); exists && isRun {
 			continue
 		}
 
+		newPlan := plan.NewScriptPlan(e.newRunQ[idx].ident, e.newRunQ[idx].conf, e.sharedState)
+
+		if _, exists := e.runPlanMap[e.newRunQ[idx].conf.Interval.Sec][]
 
 	}
 

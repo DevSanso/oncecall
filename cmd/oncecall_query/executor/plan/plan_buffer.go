@@ -1,4 +1,4 @@
-package thread
+package plan
 
 import (
 	"oncecall/errlist"

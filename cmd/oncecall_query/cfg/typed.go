@@ -7,7 +7,7 @@ import (
 type ConnConfig = types.ConnConfig
 
 type ScriptQuerySyncPlan struct {
-	Bind struct {
+	Bind *struct {
 		Fix *struct {
 			//key: cols pos
 			Pos map[string]struct {
@@ -21,10 +21,12 @@ type ScriptQuerySyncPlan struct {
 			}
 		} `toml:"fix"`
 
-		Vm *struct {
+		PrevVm *struct {
 			Lang   string `toml:"lang"`
 			Script string `toml:"script"`
-		} `toml:"vm"`
+		} `toml:"prev_vm"`
+		
+		Prev bool `toml:"prev"`
 	} `toml:"bind"`
 
 	Tran  bool   `toml:"is_tran"`
@@ -32,7 +34,7 @@ type ScriptQuerySyncPlan struct {
 }
 
 type ScriptQueryReadPlan struct {
-	Bind struct {
+	Bind *struct {
 		//key: cols pos
 		Fix map[string]struct {
 			Dynamic *struct {
@@ -43,10 +45,12 @@ type ScriptQueryReadPlan struct {
 			Static *string `toml:"static"`
 		} `toml:"fix"`
 
-		Vm *struct {
+		PrevVm *struct {
 			Lang   string `toml:"lang"`
 			Script string `toml:"script"`
-		} `toml:"vm"`
+		} `toml:"prev_vm"`
+
+		Prev bool `toml:"prev"`
 	} `toml:"bind"`
 
 	Tran  bool   `toml:"is_tran"`

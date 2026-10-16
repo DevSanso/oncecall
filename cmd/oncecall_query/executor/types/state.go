@@ -1,24 +1,26 @@
 package types
 
-import "oncecall/cmd/oncecall_query/cfg"
+import (
+	"context"
+	"oncecall/pool/types"
+	"oncecall/vm"
+)
 
 type SharedStateSetter interface {
-	SetRunningThreadState()
-	SetStopThreadState()
+	SetRunningThreadState(key IdentKey)
+	SetStopThreadState(key IdentKey)
 
-	PushConnPool()
-	PopConnPool()
+	PushConnPool(ident string, pool types.ConnPoolCloser)
+	PopConnPool(ident string)
 }
 
 type SharedStateGetter interface {
-	GetThreadState() (isRun bool, exists bool)
-	GetConnPool()
-	GetVm()
-	GetScriptConfig() *cfg.ScriptConfig
+	GetThreadState(key IdentKey) (isRun bool, exists bool)
+	GetConnPool(ident string) (connPool types.ConnPool, err error)
+	GetVm(lang string) (vm.Vm, error)
+	GetContext() context.Context
 }
 type SharedState interface {
-	SetRunThread()
-	GetIsRunningThread() bool
-
-
+	SharedStateSetter
+	SharedStateGetter
 }
