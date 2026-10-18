@@ -161,6 +161,9 @@ type SyncMap[K comparable, V any] struct {
 func NewGenericSyncMap[K comparable, V any]() *SyncMap[K, V] {
 	return &SyncMap[K, V]{}
 }
+func NewGenericSyncMapWValue[K comparable, V any]() SyncMap[K, V] {
+	return SyncMap[K, V]{}
+}
 
 func (m *SyncMap[K, V]) Load(key K) (value V, ok bool) {
 	val, ok := m.sm.Load(key)

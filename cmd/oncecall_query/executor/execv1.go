@@ -3,42 +3,59 @@ package executor
 import (
 	"context"
 	"oncecall/cmd/oncecall_query/cfg"
-	selftype "oncecall/cmd/oncecall_query/executor/types"
 	"oncecall/cmd/oncecall_query/executor/plan"
+	selftype "oncecall/cmd/oncecall_query/executor/types"
 	"oncecall/cmd/oncecall_query/global"
 	"oncecall/errlist"
 	"oncecall/utils/generic"
+	"sync"
 	"time"
 )
+
 type executeorV1IntervalSec int
 
-type executorV1PlanState struct {
-	existsPlanSet map[selftype.IdentKey]struct{}
+type executorV1DbAndPlanManage struct {
+	planStateMap          map[executeorV1IntervalSec][]plan.PlanState
+	planMap               map[string]plan.Plan
+	ConnUseIntervalSecMap map[string][]int
+
+	mutex sync.RWMutex
 }
+
+func (e *executorV1DbAndPlanManage) PushPlan() {}
+
 type ExecutorV1 struct {
-	fetcher selftype.DbFetcher
-
-	newRunQ         []struct {
-		ident selftype.IdentKey
-		conf cfg.ScriptConfig
-	}
-	stopRunQ        []selftype.IdentKey
-	threadStopFnMap  map[selftype.IdentKey]context.CancelFunc
+	fetcher          selftype.DbFetcher
 	executorCancelFn context.CancelFunc
-
-	sharedState selftype.SharedState
+	sharedState      selftype.SharedState
 
 	cache struct {
-		dbConf []cfg.ConnConfig
-		dbScriptLink []selftype.IdentKey
-		scriptConf []cfg.ScriptConfig
+		fetch struct {
+			dbConf       []cfg.ConnConfig
+			dbScriptLink []selftype.IdentKey
+			scriptConf   []cfg.ScriptConfig
+		}
+		update struct {
+			newRunQ []struct {
+				ident selftype.IdentKey
+				conf  cfg.ScriptConfig
+			}
+			stopRunQ []selftype.IdentKey
+		}
+
+		dispatch struct {
+			lazyDropPlan map[selftype.IdentKey]struct{}
+		}
 	}
 
-	runPlanMap map[executeorV1IntervalSec] map[selftype.IdentKey]selftype.Plan
+	//key : dbuuid
+	planDesc map[string]map[struct {
+		ScriptName string
+		Interval   executeorV1IntervalSec
+	}]plan.PlanState
 }
 
 func (e *ExecutorV1) Update(timeoutMs int64) error {
-
 
 	return nil
 }
@@ -50,46 +67,42 @@ func (e *ExecutorV1) Fetch(timeoutMs int64) error {
 	if db, dbErr := e.fetcher.DbList(ctx, global.ManageP); dbErr != nil {
 		return errlist.ErrG.NewError(dbErr, "update db list failed")
 	} else {
-		e.cache.dbConf = db
+		e.cache.fetch.dbConf = db
 	}
 
 	if dbScriptLink, dbScriptErr := e.fetcher.DbAndScriptLink(ctx, global.ManageP); dbScriptErr != nil {
 		return errlist.ErrG.NewError(dbScriptErr, "update db script list failed")
 	} else {
-		e.cache.dbScriptLink = make([]selftype.IdentKey, 0, len(dbScriptLink))
+		e.cache.fetch.dbScriptLink = make([]selftype.IdentKey, 0, len(dbScriptLink))
 		for idx := range dbScriptLink {
-			e.cache.dbScriptLink = append(e.cache.dbScriptLink, selftype.NewIdentKey(dbScriptLink[idx].DbUUID, dbScriptLink[idx].ScriptName))
+			e.cache.fetch.dbScriptLink = append(e.cache.fetch.dbScriptLink, selftype.NewIdentKey(dbScriptLink[idx].DbUUID, dbScriptLink[idx].ScriptName))
 		}
 	}
 
 	if script, scriptErr := e.fetcher.Script(ctx, global.ManageP); scriptErr != nil {
 		return errlist.ErrG.NewError(scriptErr, "update script list failed")
 	} else {
-		e.cache.scriptConf = script
+		e.cache.fetch.scriptConf = script
 	}
 
 	return nil
 }
 func (e *ExecutorV1) disPatchRmStopTh() error {
-	for idx := range e.stopRunQ {
-		stop, exists := e.threadStopFnMap[e.stopRunQ[idx]]
-		if !exists {continue}
-		stop()
-		delete(e.threadStopFnMap, e.stopRunQ[idx])
-	}
-	return nil
-}
-
-func (e *ExecutorV1) disPatchStartNewTh() error {
-	for idx := range e.newRunQ {
-		if isRun, exists := e.sharedState.GetThreadState(e.newRunQ[idx].ident); exists && isRun {
+	for _, data := range e.cache.update.stopRunQ {
+		startup, running, _ := e.sharedState.GetThreadState(data)
+		if startup || running {
+			e.cache.dispatch.lazyDropPlan[data] = struct{}{}
+			continue
+		}
+		desc, exists := e.planDesc[data.DbID()]
+		if !exists {
 			continue
 		}
 
-		newPlan := plan.NewScriptPlan(e.newRunQ[idx].ident, e.newRunQ[idx].conf, e.sharedState)
-
-		if _, exists := e.runPlanMap[e.newRunQ[idx].conf.Interval.Sec][]
-
+		for k, v := range desc {
+			_ = v.Close()
+			delete(desc, k)
+		}
 	}
 
 	return nil
@@ -100,14 +113,13 @@ func (e *ExecutorV1) DisPatch() error {
 		return errlist.ErrG.NewError(err, "")
 	}
 
-
+	return nil
 }
 
 func (e *ExecutorV1) Close() error {
 	e.executorCancelFn()
 
 	stopMap := make(map[generic.Pair[string, string]]context.CancelFunc, 10)
-	e.threadStopFnMap.RawRead(stopMap)
 
 	for _, thStopFn := range stopMap {
 		thStopFn()
@@ -115,7 +127,3 @@ func (e *ExecutorV1) Close() error {
 
 	return nil
 }
-
-
-
-

@@ -7,11 +7,11 @@ import (
 
 type IdentKey generic.Pair[string, string]
 
-func NewIdentKey(dbUUID, scriptName string) IdentKey {
-	return IdentKey{dbUUID, scriptName}
+func NewIdentKey(dbID, scriptName string) IdentKey {
+	return IdentKey{dbID, scriptName}
 }
 
-func (k *IdentKey) DbUUID() string {
+func (k *IdentKey) DbID() string {
 	return k.First
 }
 
