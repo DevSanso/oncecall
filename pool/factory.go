@@ -35,7 +35,6 @@ func NewConnPool(ctx context.Context, ident string, info types.ConnConfig,
 	var gErr error
 	switch define.POOLType(info.DBType) {
 	case define.REDIS:
-
 		g, gErr = gen.NewRedisGenerator(info, connLogExtension)
 	case define.LOCAL:
 		g, gErr = gen.NewLocalGenerator(info, connLogExtension)
@@ -45,8 +44,9 @@ func NewConnPool(ctx context.Context, ident string, info types.ConnConfig,
 		g, gErr = gen.NewSSHGenerator(info, connLogExtension)
 	case define.CASSANDRA:
 		g, gErr = gen.NewCassandraGenerator(info, connLogExtension)
+	case define.ODBC:
+		g, gErr = gen.NewODBCGenerator(info, connLogExtension)
 	default:
-
 		g, gErr = gen.NewStdGenerator(info, connLogExtension)
 	}
 

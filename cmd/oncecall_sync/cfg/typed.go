@@ -123,10 +123,14 @@ type ProcessConfig struct {
 	Cmd struct {
 		Db struct {
 			Query struct {
-				DbList       string `toml:"db_list"`
-				DbOption     string `toml:"db_option"`
-				DbScriptLink string `toml:"db_script_link"`
-				Script       string `toml:"script"`
+				Manage struct {
+					DbSyncList  string `toml:"db_sync_list"`
+				} `toml:"manage"`
+				Sync struct {
+					DbList       string `toml:"db_list"`
+					DbOption     string `toml:"db_option"`
+					Script       string `toml:"script"`
+				} `toml:"sync"`
 			} `toml:"query"`
 		} `toml:"db"`
 	} `toml:"cmd"`
@@ -181,33 +185,54 @@ var (
 		Cmd: struct {
 			Db struct {
 				Query struct {
-					DbList       string "toml:\"db_list\""
-					DbOption     string "toml:\"db_option\""
-					DbScriptLink string "toml:\"db_script_link\""
-					Script       string "toml:\"script\""
-				} "toml:\"query\""
+					Manage struct {
+						DbSyncList  string `toml:"db_sync_list"`
+					} `toml:"manage"`
+					Sync struct {
+						DbList       string `toml:"db_list"`
+						DbOption     string `toml:"db_option"`
+						Script       string `toml:"script"`
+					} `toml:"sync"`
+				} `toml:"query"`
 			} "toml:\"db\""
 		}{
 			Db: struct {
 				Query struct {
-					DbList       string "toml:\"db_list\""
-					DbOption     string "toml:\"db_option\""
-					DbScriptLink string "toml:\"db_script_link\""
-					Script       string "toml:\"script\""
-				} "toml:\"query\""
+					Manage struct {
+						DbSyncList  string `toml:"db_sync_list"`
+					} `toml:"manage"`
+					Sync struct {
+						DbList       string `toml:"db_list"`
+						DbOption     string `toml:"db_option"`
+						Script       string `toml:"script"`
+					} `toml:"sync"`
+				} `toml:"query"`
 			}{
-				Query: struct {
-					DbList       string "toml:\"db_list\""
-					DbOption     string "toml:\"db_option\""
-					DbScriptLink string "toml:\"db_script_link\""
-					Script       string "toml:\"script\""
+				struct {
+					Manage struct {
+						DbSyncList  string `toml:"db_sync_list"`
+					} `toml:"manage"`
+					Sync struct {
+						DbList       string `toml:"db_list"`
+						DbOption     string `toml:"db_option"`
+						Script       string `toml:"script"`
+					} `toml:"sync"`
 				}{
-					DbList:   "SELECT * FROM db_list where is_enable = true",
-					DbOption: `SELECT opt.db_uuid, opt."key", opt.value FROM db_option opt where exists ( select 1 from db_list l where l.s_enable = true and l.uuid = opt.db_uuid)`,
-					DbScriptLink: `SELECT link.script_name, link.db_uuid 
-						FROM db_script_link link 
-						WHERE link.is_use = true and exists ( select 1 from db_list l where l.s_enable = true and l.uuid = link.db_uuid)`,
-					Script: "SELECT script_name, script_data from scripts",
+					Manage: struct {
+						DbSyncList string `toml:"db_sync_list"`
+					}{DbSyncList: "SELECT db_uuid FROM db_list where is_enable = true"},
+					Sync: struct {
+						DbList   string `toml:"db_list"`
+						DbOption string `toml:"db_option"`
+						Script   string `toml:"script"`
+					}{
+						DbList: "SELECT * FROM db_list where is_enable = true and db_uuid != $1",
+						DbOption: `SELECT opt.db_uuid, opt."key", opt.value FROM db_option opt where exists db_uuid = $1`,
+						Script: `SELECT s.script_name, s.script_data 
+						from scripts s join db_script_link link 
+						    on s.script_name = link.script_name 
+						where link.db_uuid = $1`,
+					},
 				},
 			},
 		},

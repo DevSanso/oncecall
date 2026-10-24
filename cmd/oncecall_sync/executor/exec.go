@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"context"
 	"crypto/md5"
-	"oncecall/cmd/oncecall_query/cfg"
-	"oncecall/cmd/oncecall_query/global"
+	"oncecall/cmd/oncecall_sync/cfg"
+	"oncecall/cmd/oncecall_sync/global/log"
 	"oncecall/errlist"
 	"oncecall/pool"
 	"oncecall/pool/types"
@@ -199,7 +199,7 @@ func (e *Executor) loadConnPool() error {
 			Password:  password,
 			MaxConn:   maxConn,
 			OptionMap: optionMap,
-		}, global.Metric.Metric, global.Log.ConnLogExtension, global.Log.QueryLogExtension)
+		}, log.Metric.Metric, log.Log.Conn, log.Log.Query)
 
 		if newPoolErr != nil {
 			return errlist.ErrG.NewError(newPoolErr, "identifier : %s", identifier)

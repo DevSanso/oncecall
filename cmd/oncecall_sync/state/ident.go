@@ -1,7 +1,6 @@
-package types
+package state
 
 import (
-	"io"
 	"oncecall/utils/generic"
 )
 
@@ -17,11 +16,4 @@ func (k *IdentKey) DbID() string {
 
 func (k *IdentKey) ScriptName() string {
 	return k.Second
-}
-
-type Executor interface {
-	Update(timeoutMs int64) error
-	Fetch(timeoutMs int64) error
-	DisPatch() error
-	io.Closer
 }

@@ -2,7 +2,7 @@ package plan
 
 import (
 	"context"
-	"oncecall/cmd/oncecall_query/executor/types"
+	"oncecall/cmd/oncecall_sync/state"
 	"oncecall/utils/generic"
 	"sync/atomic"
 )
@@ -11,7 +11,7 @@ type PlanState struct {
 	context    context.Context
 	cancelFunc context.CancelFunc
 	seq        int64
-	syncIdent  types.IdentKey
+	syncIdent  state.IdentKey
 
 	ref *struct {
 		isInit         atomic.Bool
@@ -25,7 +25,7 @@ func (p *PlanState) Close() error {
 	return nil
 }
 
-func NewPlanState(baseCtx context.Context, syncIdent types.IdentKey, readPlanCount int, colCap int, rowCap int, idleTime int) PlanState {
+func NewPlanState(baseCtx context.Context, syncIdent state.IdentKey, readPlanCount int, colCap int, rowCap int, idleTime int) PlanState {
 	ctx, cancel := context.WithCancel(baseCtx)
 
 	return PlanState{

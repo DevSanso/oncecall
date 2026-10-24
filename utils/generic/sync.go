@@ -186,6 +186,11 @@ func (m *SyncMap[K, V]) Delete(key K) {
 	m.sm.Delete(key)
 }
 
+func (m *SyncMap[K, V]) LoadAndDelete(key K) (actual V, loaded bool) {
+	val, loaded := m.sm.LoadAndDelete(key)
+	return val.(V), loaded
+}
+
 func (m *SyncMap[K, V]) Range(f func(key K, value V) bool) {
 	m.sm.Range(func(k, v any) bool {
 		return f(k.(K), v.(V))

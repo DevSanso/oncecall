@@ -2,8 +2,8 @@ package plan
 
 import (
 	"context"
-	"oncecall/cmd/oncecall_query/cfg"
-	"oncecall/cmd/oncecall_query/executor/types"
+	"oncecall/cmd/oncecall_sync/cfg"
+	"oncecall/cmd/oncecall_sync/state"
 	"oncecall/errlist"
 	"oncecall/errlist/prefix"
 	conntype "oncecall/pool/types"
@@ -23,17 +23,17 @@ const (
 
 type scriptPlan struct {
 	plan   cfg.ScriptConfig
-	shared types.SharedStatePlanCtl
+	shared state.SharedStatePlanCtl
 }
 
-func NewScriptPlan(scriptConfig cfg.ScriptConfig, shared types.SharedStatePlanCtl) Plan {
+func NewScriptPlan(scriptConfig cfg.ScriptConfig, shared state.SharedStatePlanCtl) Plan {
 	return &scriptPlan{
 		shared: shared,
 		plan:   scriptConfig,
 	}
 }
 
-func (s *scriptPlan) init(ctx context.Context, ident types.IdentKey, isInit bool) error {
+func (s *scriptPlan) init(ctx context.Context, ident state.IdentKey, isInit bool) error {
 	p := &s.plan
 
 	if p.Init == nil && isInit {
@@ -429,5 +429,9 @@ func (s *scriptPlan) Run(planState *PlanState, isWait bool) error {
 	}
 
 	planState.seq = currentSeq
+	return nil
+}
+
+func (s *scriptPlan) Close() error {
 	return nil
 }

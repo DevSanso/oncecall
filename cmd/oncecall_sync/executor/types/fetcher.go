@@ -2,7 +2,7 @@ package types
 
 import (
 	"context"
-	"oncecall/cmd/oncecall_query/cfg"
+	"oncecall/cmd/oncecall_sync/cfg"
 	"oncecall/pool/types"
 )
 

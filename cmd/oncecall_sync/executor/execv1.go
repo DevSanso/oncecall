@@ -2,10 +2,11 @@ package executor
 
 import (
 	"context"
-	"oncecall/cmd/oncecall_query/cfg"
-	"oncecall/cmd/oncecall_query/executor/plan"
-	selftype "oncecall/cmd/oncecall_query/executor/types"
-	"oncecall/cmd/oncecall_query/global"
+	"oncecall/cmd/oncecall_sync/cfg"
+	selftype "oncecall/cmd/oncecall_sync/executor/types"
+	"oncecall/cmd/oncecall_sync/global/manage"
+	plan2 "oncecall/cmd/oncecall_sync/plan"
+	"oncecall/cmd/oncecall_sync/state"
 	"oncecall/errlist"
 	"oncecall/utils/generic"
 	"sync"
@@ -15,8 +16,8 @@ import (
 type executeorV1IntervalSec int
 
 type executorV1DbAndPlanManage struct {
-	planStateMap          map[executeorV1IntervalSec][]plan.PlanState
-	planMap               map[string]plan.Plan
+	planStateMap          map[executeorV1IntervalSec][]plan2.PlanState
+	planMap               map[string]plan2.Plan
 	ConnUseIntervalSecMap map[string][]int
 
 	mutex sync.RWMutex
@@ -27,24 +28,24 @@ func (e *executorV1DbAndPlanManage) PushPlan() {}
 type ExecutorV1 struct {
 	fetcher          selftype.DbFetcher
 	executorCancelFn context.CancelFunc
-	sharedState      selftype.SharedState
+	sharedState      state.SharedState
 
 	cache struct {
 		fetch struct {
 			dbConf       []cfg.ConnConfig
-			dbScriptLink []selftype.IdentKey
+			dbScriptLink []state.IdentKey
 			scriptConf   []cfg.ScriptConfig
 		}
 		update struct {
 			newRunQ []struct {
-				ident selftype.IdentKey
+				ident state.IdentKey
 				conf  cfg.ScriptConfig
 			}
-			stopRunQ []selftype.IdentKey
+			stopRunQ []state.IdentKey
 		}
 
 		dispatch struct {
-			lazyDropPlan map[selftype.IdentKey]struct{}
+			lazyDropPlan map[state.IdentKey]struct{}
 		}
 	}
 
@@ -52,7 +53,7 @@ type ExecutorV1 struct {
 	planDesc map[string]map[struct {
 		ScriptName string
 		Interval   executeorV1IntervalSec
-	}]plan.PlanState
+	}]plan2.PlanState
 }
 
 func (e *ExecutorV1) Update(timeoutMs int64) error {
@@ -64,22 +65,22 @@ func (e *ExecutorV1) Fetch(timeoutMs int64) error {
 	ctx, cancelFn := context.WithTimeout(e.sharedState.GetContext(), time.Duration(timeoutMs)*time.Millisecond)
 	defer cancelFn()
 
-	if db, dbErr := e.fetcher.DbList(ctx, global.ManageP); dbErr != nil {
+	if db, dbErr := e.fetcher.DbList(ctx, manage.ManageP); dbErr != nil {
 		return errlist.ErrG.NewError(dbErr, "update db list failed")
 	} else {
 		e.cache.fetch.dbConf = db
 	}
 
-	if dbScriptLink, dbScriptErr := e.fetcher.DbAndScriptLink(ctx, global.ManageP); dbScriptErr != nil {
+	if dbScriptLink, dbScriptErr := e.fetcher.DbAndScriptLink(ctx, manage.ManageP); dbScriptErr != nil {
 		return errlist.ErrG.NewError(dbScriptErr, "update db script list failed")
 	} else {
-		e.cache.fetch.dbScriptLink = make([]selftype.IdentKey, 0, len(dbScriptLink))
+		e.cache.fetch.dbScriptLink = make([]state.IdentKey, 0, len(dbScriptLink))
 		for idx := range dbScriptLink {
-			e.cache.fetch.dbScriptLink = append(e.cache.fetch.dbScriptLink, selftype.NewIdentKey(dbScriptLink[idx].DbUUID, dbScriptLink[idx].ScriptName))
+			e.cache.fetch.dbScriptLink = append(e.cache.fetch.dbScriptLink, state.NewIdentKey(dbScriptLink[idx].DbUUID, dbScriptLink[idx].ScriptName))
 		}
 	}
 
-	if script, scriptErr := e.fetcher.Script(ctx, global.ManageP); scriptErr != nil {
+	if script, scriptErr := e.fetcher.Script(ctx, manage.ManageP); scriptErr != nil {
 		return errlist.ErrG.NewError(scriptErr, "update script list failed")
 	} else {
 		e.cache.fetch.scriptConf = script

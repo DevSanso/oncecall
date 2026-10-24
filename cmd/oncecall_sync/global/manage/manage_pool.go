@@ -1,4 +1,4 @@
-package global
+package manage
 
 import "oncecall/pool/types"
 

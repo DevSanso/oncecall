@@ -18,10 +18,10 @@ type ZapSugaredFileLoggerExtension struct {
 	MaxSize int64  `toml:"max_size"`
 	BackUp  int    `toml:"backup"`
 
-	l       *zap.SugaredLogger
-	initFlag atomic.Bool
+	l         *zap.SugaredLogger
+	initFlag  atomic.Bool
 	initMutex sync.Mutex
-	closeFn func()
+	closeFn   func()
 }
 
 func (*ZapSugaredFileLoggerExtension) getLevelFromArgs(level string) zapcore.Level {
@@ -95,20 +95,17 @@ func (z *ZapSugaredFileLoggerExtension) init() {
 		}
 		infoF, infoCond, infoErr := z.initGetFile(logDirAbs, z.Name, "info", z.MaxSize, z.BackUp)
 		if infoErr != nil {
-			_ = infoF.Close()
 			panic("ZapLogExtension Init Panic: " + infoErr.Error())
 		}
 		warnF, warnCond, warnErr := z.initGetFile(logDirAbs, z.Name, "warn", z.MaxSize, z.BackUp)
 		if warnErr != nil {
 			_ = infoF.Close()
-			_ = warnF.Close()
 			panic("ZapLogExtension Init Panic: " + warnErr.Error())
 		}
 		errorF, errorCond, errorErr := z.initGetFile(logDirAbs, z.Name, "error", z.MaxSize, z.BackUp)
 		if errorErr != nil {
 			_ = infoF.Close()
 			_ = warnF.Close()
-			_ = errorF.Close()
 			panic("ZapLogExtension Init Panic: " + errorErr.Error())
 		}
 		z.closeFn = func() {
@@ -151,22 +148,22 @@ func (z *ZapSugaredFileLoggerExtension) init() {
 }
 func (z *ZapSugaredFileLoggerExtension) Debug(msg string, param ...any) {
 	z.init()
-	z.l.Debug(msg, param)
+	z.l.Debugf(msg, param)
 }
 
 func (z *ZapSugaredFileLoggerExtension) Error(msg string, param ...any) {
 	z.init()
-	z.l.Error(msg, param)
+	z.l.Errorf(msg, param)
 }
 
 func (z *ZapSugaredFileLoggerExtension) Info(msg string, param ...any) {
 	z.init()
-	z.l.Info(msg, param)
+	z.l.Infof(msg, param)
 }
 
 func (z *ZapSugaredFileLoggerExtension) Warn(msg string, param ...any) {
 	z.init()
-	z.l.Warn(msg, param)
+	z.l.Warnf(msg, param)
 }
 
 func (z *ZapSugaredFileLoggerExtension) Close() error {
@@ -174,4 +171,3 @@ func (z *ZapSugaredFileLoggerExtension) Close() error {
 	z.closeFn()
 	return nil
 }
-

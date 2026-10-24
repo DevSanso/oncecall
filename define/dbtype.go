@@ -13,4 +13,5 @@ const (
 	CASSANDRA POOLType = "cassandra"
 	LOCAL     POOLType = "local"
 	KAFKA     POOLType = "kafka"
+	ODBC      POOLType = "odbc"
 )
