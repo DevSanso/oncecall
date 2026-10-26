@@ -33,7 +33,7 @@ func NewScriptPlan(scriptConfig cfg.ScriptConfig, shared state.SharedStatePlanCt
 	}
 }
 
-func (s *scriptPlan) init(ctx context.Context, ident state.IdentKey, isInit bool) error {
+func (s *scriptPlan) init(ctx context.Context, ident state.ThreadKey, isInit bool) error {
 	p := &s.plan
 
 	if p.Init == nil && isInit {

@@ -11,7 +11,7 @@ type PlanState struct {
 	context    context.Context
 	cancelFunc context.CancelFunc
 	seq        int64
-	syncIdent  state.IdentKey
+	syncIdent  state.ThreadKey
 
 	ref *struct {
 		isInit         atomic.Bool
@@ -25,7 +25,7 @@ func (p *PlanState) Close() error {
 	return nil
 }
 
-func NewPlanState(baseCtx context.Context, syncIdent state.IdentKey, readPlanCount int, colCap int, rowCap int, idleTime int) PlanState {
+func NewPlanState(baseCtx context.Context, syncIdent state.ThreadKey, readPlanCount int, colCap int, rowCap int, idleTime int) PlanState {
 	ctx, cancel := context.WithCancel(baseCtx)
 
 	return PlanState{

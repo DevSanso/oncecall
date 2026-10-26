@@ -66,10 +66,11 @@ func NewConnPool(ctx context.Context, ident string, info types.ConnConfig,
 		Gen: func(ctx context.Context, l log.LoggerDebugExtension[any]) (types.Conn, error) {
 			return cp.connGenerator.Gen(ctx, l)
 		},
-		Max:     info.MaxConn,
-		Metric:  metric,
-		Logger:  genLogExtension,
-		Context: ctx,
+		Max:         info.MaxConn,
+		Metric:      metric,
+		Logger:      genLogExtension,
+		Context:     ctx,
+		IdleTimeout: time.Second * 61,
 	}
 
 	poolLogExtension.Debug("create conn pool (ident:%s,server:%s,dbtype:%s)", ident, info.Server, info.DBType)

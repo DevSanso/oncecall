@@ -21,9 +21,15 @@ func main() {
 	procCtx, cancel := context.WithCancel(context.Background())
 
 	if config.SyncIdent == "" {
-		go entry.MasterEntry(procCtx)
+		go func() {
+			entry.MasterEntry(procCtx)
+			cancel()
+		}()
 	} else {
-		go entry.MasterEntry(procCtx)
+		go func() {
+			entry.SyncdEntry(procCtx)
+			cancel()
+		}()
 	}
 
 loop:
@@ -31,6 +37,9 @@ loop:
 		select {
 		case sig := <-sigs:
 			log.Log.Proc.Info("signal: ", sig)
+			break loop
+		case <-procCtx.Done():
+			log.Log.Proc.Info("process entry terminated")
 			break loop
 		default:
 			time.Sleep(1 * time.Second)

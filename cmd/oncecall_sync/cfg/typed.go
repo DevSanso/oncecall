@@ -25,7 +25,7 @@ type ScriptQuerySyncPlan struct {
 			Lang   string `toml:"lang"`
 			Script string `toml:"script"`
 		} `toml:"prev_vm"`
-		
+
 		Prev bool `toml:"prev"`
 	} `toml:"bind"`
 
@@ -124,9 +124,10 @@ type ProcessConfig struct {
 		Db struct {
 			Query struct {
 				Manage struct {
-					DbSyncList  string `toml:"db_sync_list"`
+					DbSyncList string `toml:"db_sync_list"`
 				} `toml:"manage"`
 				Sync struct {
+					SelfConnInfo string `toml:"self_conn_info"`
 					DbList       string `toml:"db_list"`
 					DbOption     string `toml:"db_option"`
 					Script       string `toml:"script"`
@@ -186,9 +187,10 @@ var (
 			Db struct {
 				Query struct {
 					Manage struct {
-						DbSyncList  string `toml:"db_sync_list"`
+						DbSyncList string `toml:"db_sync_list"`
 					} `toml:"manage"`
 					Sync struct {
+						SelfConnInfo string `toml:"self_conn_info"`
 						DbList       string `toml:"db_list"`
 						DbOption     string `toml:"db_option"`
 						Script       string `toml:"script"`
@@ -199,9 +201,10 @@ var (
 			Db: struct {
 				Query struct {
 					Manage struct {
-						DbSyncList  string `toml:"db_sync_list"`
+						DbSyncList string `toml:"db_sync_list"`
 					} `toml:"manage"`
 					Sync struct {
+						SelfConnInfo string `toml:"self_conn_info"`
 						DbList       string `toml:"db_list"`
 						DbOption     string `toml:"db_option"`
 						Script       string `toml:"script"`
@@ -210,9 +213,10 @@ var (
 			}{
 				struct {
 					Manage struct {
-						DbSyncList  string `toml:"db_sync_list"`
+						DbSyncList string `toml:"db_sync_list"`
 					} `toml:"manage"`
 					Sync struct {
+						SelfConnInfo string `toml:"self_conn_info"`
 						DbList       string `toml:"db_list"`
 						DbOption     string `toml:"db_option"`
 						Script       string `toml:"script"`
@@ -222,12 +226,14 @@ var (
 						DbSyncList string `toml:"db_sync_list"`
 					}{DbSyncList: "SELECT db_uuid FROM db_list where is_enable = true"},
 					Sync: struct {
-						DbList   string `toml:"db_list"`
-						DbOption string `toml:"db_option"`
-						Script   string `toml:"script"`
+						SelfConnInfo string `toml:"self_conn_info"`
+						DbList       string `toml:"db_list"`
+						DbOption     string `toml:"db_option"`
+						Script       string `toml:"script"`
 					}{
-						DbList: "SELECT * FROM db_list where is_enable = true and db_uuid != $1",
-						DbOption: `SELECT opt.db_uuid, opt."key", opt.value FROM db_option opt where exists db_uuid = $1`,
+						SelfConnInfo: "SELECT * FROM db_list where db_uuid = $1 and is_enable = true",
+						DbList:       "SELECT * FROM db_list where is_enable = true and db_uuid != $1",
+						DbOption:     `SELECT opt.db_uuid, opt."key", opt.value FROM db_option opt where exists db_uuid = $1`,
 						Script: `SELECT s.script_name, s.script_data 
 						from scripts s join db_script_link link 
 						    on s.script_name = link.script_name 

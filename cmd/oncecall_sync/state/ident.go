@@ -4,16 +4,16 @@ import (
 	"oncecall/utils/generic"
 )
 
-type IdentKey generic.Pair[string, string]
+type ThreadKey generic.Pair[string, string]
 
-func NewIdentKey(dbID, scriptName string) IdentKey {
-	return IdentKey{dbID, scriptName}
+func NewIdentKey(dbID, scriptName string) ThreadKey {
+	return ThreadKey{dbID, scriptName}
 }
 
-func (k *IdentKey) DbID() string {
+func (k *ThreadKey) DbID() string {
 	return k.First
 }
 
-func (k *IdentKey) ScriptName() string {
+func (k *ThreadKey) ScriptName() string {
 	return k.Second
 }
