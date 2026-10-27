@@ -400,11 +400,6 @@ func (s *scriptPlan) allocCurrentDataToState(state *PlanState, idx int, rows [][
 }
 
 func (s *scriptPlan) Run(planState *PlanState, isWait bool) error {
-	key := planState.syncIdent
-
-	s.shared.SetRunningThreadState(key)
-	defer s.shared.SetStopThreadState(key)
-
 	if err := s.init(s.shared.GetContext(), planState.syncIdent, planState.ref.isInit.Load()); err != nil {
 		return errlist.ErrG.NewError(err, "init failed")
 	}

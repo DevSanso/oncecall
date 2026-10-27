@@ -19,17 +19,16 @@ type SharedStateManageCtl interface {
 	SharedStateCommonCtl
 	PushConnPool(ident string, pool types.ConnPoolCloser)
 	PopConnPool(ident string)
-	SetStartUpThreadState(key ThreadKey)
 	DeleteThreadState(key ThreadKey)
-	GetThreadState(key ThreadKey) (isStartUp bool, isRun bool, exists bool)
+	GetThreadState(key ThreadKey) (isRun bool, exists bool)
 	ExistsConnPool(ident string) (is bool)
+	SetRunningThreadState(key ThreadKey)
+	SetStopThreadState(key ThreadKey)
 }
 
 type SharedStatePlanCtl interface {
 	SharedStateCommonCtl
 	GetVm(lang string) (vm.Vm, error)
-	SetStopThreadState(key ThreadKey)
-	SetRunningThreadState(key ThreadKey)
 }
 
 type SharedState interface {
@@ -39,8 +38,7 @@ type SharedState interface {
 type ThreadState int
 
 const (
-	ThreadStateStartup ThreadState = 1 << iota
-	ThreadStateRunning
+	ThreadStateRunning ThreadState = 1 << iota
 	ThreadStateStop
 )
 
@@ -77,13 +75,13 @@ func (i *implSharedState) GetContext() context.Context {
 	return i.ctx
 }
 
-func (i *implSharedState) GetThreadState(key ThreadKey) (isStartUp bool, isRun bool, exists bool) {
+func (i *implSharedState) GetThreadState(key ThreadKey) (isRun bool, exists bool) {
 	state, is := i.threadState.Load(key)
 	if !is {
-		return false, false, false
+		return false, false
 	}
 
-	return state == ThreadStateStartup, state == ThreadStateRunning, true
+	return state == ThreadStateRunning, true
 }
 
 func (i *implSharedState) GetVm(lang string) (vm.Vm, error) {
@@ -105,10 +103,6 @@ func (i *implSharedState) PushConnPool(ident string, pool types.ConnPoolCloser) 
 
 func (i *implSharedState) SetRunningThreadState(key ThreadKey) {
 	i.threadState.Store(key, ThreadStateRunning)
-}
-
-func (i *implSharedState) SetStartUpThreadState(key ThreadKey) {
-	i.threadState.Store(key, ThreadStateStartup)
 }
 
 func (i *implSharedState) SetStopThreadState(key ThreadKey) {

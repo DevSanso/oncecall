@@ -2,11 +2,11 @@ package utils
 
 import "time"
 
-func IntervalSleep(intervalSec time.Duration, millieOffset time.Duration) {
+func IntervalSleep(interval time.Duration, offset time.Duration) {
 	now := time.Now()
-	next := now.Truncate(intervalSec).
-		Add(intervalSec).
-		Add(millieOffset)
+	next := now.Truncate(interval).
+		Add(interval).
+		Add(offset)
 
 	time.Sleep(time.Until(next))
 }
