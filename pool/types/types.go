@@ -1,0 +1,41 @@
+package types
+
+import (
+	"context"
+	"io"
+)
+
+type Args struct {
+	Query         string
+	Args          [][]any
+	IsTransaction bool
+}
+
+type ConnConfig struct {
+	DBType string `toml:"db_type"`
+	Name   string `toml:"name"`
+
+	Server   string `toml:"server"`
+	Id       string `toml:"id"`
+	Password string `toml:"password"`
+
+	MaxConn   int            `toml:"max_conn"`
+	OptionMap map[string]any `toml:"option"`
+}
+
+type Conn interface {
+	RunExecute(ctx context.Context, arg *Args) error
+	RunQuery(ctx context.Context, arg *Args) (rows [][]any, name []string, err error)
+	io.Closer
+}
+
+type ConnPool interface {
+	RunExecute(ctx context.Context, arg *Args) error
+	RunQuery(ctx context.Context, arg *Args) (rows [][]any, name []string, err error)
+	GetConfig() ConnConfig
+}
+
+type ConnPoolCloser interface {
+	ConnPool
+	io.Closer
+}

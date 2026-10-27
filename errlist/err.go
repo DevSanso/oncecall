@@ -22,12 +22,16 @@ func (w wrapError) Error() string {
 	var realErrMsg = ""
 	if w.realErr != nil {
 		realErrMsg = w.realErr.Error()
+	} else {
+		realErrMsg = "<empty>"
 	}
 	builder.WriteString(fmt.Sprintf("(idx:0,type:%s), (msg:%s,real:%s) [fn:%s,file:%s]", w.typeName, w.message, realErrMsg, w.funcName, w.fileAndLine))
 
 	for e := w.next; e != nil; e = e.next {
 		if e.realErr != nil {
 			realErrMsg = e.realErr.Error()
+		}  else {
+			realErrMsg = "<empty>"
 		}
 		builder.WriteString(fmt.Sprintf("\t\n(idx:%d,type:%s), (msg:%s,real:%s) [fn:%s,file:%s]", idx, e.typeName, e.message, realErrMsg, e.funcName, e.fileAndLine))
 		idx += 1

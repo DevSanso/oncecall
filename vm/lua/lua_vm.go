@@ -18,12 +18,10 @@ type luaVM struct {
 	input  [][]any
 	output [][]any
 
-	tempGPtrMap *generic.GenericSyncMap[string, any]
+	tempGPtrMap *generic.SyncMap[string, any]
 }
 
-type LuaVm vm.Vm[lua.State]
-
-func NewLuaVM() LuaVm {
+func NewLuaVM() vm.Vm {
 	obj := &luaVM{
 		raw:         lua.NewState(),
 		once:        sync.Once{},
@@ -48,7 +46,7 @@ func (*luaVM) convertLuaToAsGo(l *lua.State, index int) (output any, err error) 
 		size := l.RawLength(index)
 
 		buf := make([]byte, size)
-		for idx := 0; idx < size; idx += 1 {
+		for idx := range size {
 			l.RawGetInt(index, idx+1)
 			byteData, byteOk := l.ToInteger(-1)
 			l.Pop(1)
@@ -136,9 +134,8 @@ func (w *luaVM) registerGetDataLuaFunc(name string) {
 		if isCastFailFlag {
 			lua.Errorf(l, "%s", errlist.ErrG.NewError(nil, "cast failed type"))
 			return 0
-		} else {
-			return 1
 		}
+		return 1
 	})
 	w.raw.SetGlobal(name)
 }
@@ -224,23 +221,30 @@ func (w *luaVM) registerCacheMapLuaUserData(userdataName string) {
 			return 0
 		}
 
-		if l.IsNil(2) {
-			err := errlist.ErrG.NewError(nil, "can't store nil [%v]", key)
-			zap.L().Error(err.Error())
-			return 0
-		}
-
 		val := l.ToValue(2)
 		w.tempGPtrMap.Store(key, val)
 		return 0
 	})
 
 	w.raw.SetField(-2, "set")
-	w.raw.SetGlobal(userdataName)
 
+	w.raw.PushGoFunction(func(l *lua.State) int {
+		key, kOk := l.ToString(1)
+		if !kOk {
+			err := errlist.ErrG.NewError(nil, "can't cast type string [%v]", kOk)
+			zap.L().Error(err.Error())
+			return 0
+		}
+		w.tempGPtrMap.Delete(key)
+		return 0
+	})
+
+	w.raw.SetField(-2, "del")
+
+	w.raw.SetGlobal(userdataName)
 }
 
-func (w *luaVM) Do(cache *generic.GenericSyncMap[string, any], script string, data [][]any) ([][]any, error) {
+func (w *luaVM) Do(cache *generic.SyncMap[string, any], script string, data [][]any) ([][]any, error) {
 	w.input = data
 	if w.input == nil {
 		w.input = [][]any{}
@@ -260,8 +264,4 @@ func (w *luaVM) Do(cache *generic.GenericSyncMap[string, any], script string, da
 	}
 
 	return nil, nil
-}
-
-func (w *luaVM) Extend(extendFn func(raw *lua.State) error) error {
-	return extendFn(w.raw)
 }
