@@ -2,12 +2,11 @@ package generic
 
 import (
 	"fmt"
-	"oncecall/utils/generic"
 	"testing"
 )
 
 func TestSyncPool(t *testing.T) {
-	p := generic.NewGenericSyncPool(func() struct{ data int } {
+	p := NewGenericSyncPool(func() struct{ data int } {
 		return struct{ data int }{data: 111}
 	})
 
@@ -26,7 +25,7 @@ func TestChkDeepCopySyncPool(t *testing.T) {
 		data2: 1,
 		data:  fmt.Sprintf("%s", "hello world"),
 	}
-	p := generic.NewGenericSyncPool(func() struct {
+	p := NewGenericSyncPool(func() struct {
 		data  string
 		data2 int
 	} {
@@ -58,7 +57,7 @@ func TestSyncUsePool(t *testing.T) {
 		data2: 1,
 		data:  fmt.Sprintf("%s", "hello world"),
 	}
-	p := generic.NewGenericSyncUsePool[*TestCloser, string](func() (*TestCloser, error) {
+	p := NewGenericSyncUsePool[*TestCloser, string](func() (*TestCloser, error) {
 		return &TestCloser{data: "hello world"}, nil
 	})
 

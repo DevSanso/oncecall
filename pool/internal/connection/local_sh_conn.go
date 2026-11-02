@@ -1,7 +1,6 @@
 package connection
 
 import (
-	"bytes"
 	"context"
 	"io"
 	"oncecall/errlist"
@@ -30,6 +29,9 @@ type localShConn struct {
 		proc   *exec.Cmd
 		stdin  io.WriteCloser
 		stdout io.ReadCloser
+
+		outputEndChar string
+		inputEndChar  string
 	}
 
 	nonInteractive struct {
@@ -38,7 +40,7 @@ type localShConn struct {
 	}
 }
 
-func NewLocalShConn(isInteractive bool, execPath, outputSplitChar, outputNewlineChar, inputNextLineChar, inputDivisionChar string, args ...string) (types.Conn, error) {
+func NewLocalShConn(isInteractive bool, execPath, outputSplitChar, outputNewlineChar, inputNextLineChar, inputDivisionChar, inputEndChar, outputEndChar string, args ...string) (types.Conn, error) {
 	c := &localShConn{
 		isCloseFlag:       atomic.Bool{},
 		splitChar:         outputSplitChar,
@@ -69,6 +71,8 @@ func NewLocalShConn(isInteractive bool, execPath, outputSplitChar, outputNewline
 		c.interactive.proc = cmd
 		c.interactive.stdin = stdin
 		c.interactive.stdout = stdout
+		c.interactive.inputEndChar = inputEndChar
+		c.interactive.outputEndChar = outputEndChar
 	} else {
 		c.nonInteractive.execPath = execPath
 		c.nonInteractive.args = args
@@ -86,16 +90,11 @@ func (l *localShConn) RunExecute(ctx context.Context, arg *types.Args) error {
 	defer l.shMutex.Unlock()
 
 	if l.isInteractive {
-		_, writeErr := l.interactive.stdin.Write(l.connUtils.MakeParam(l.inputNextLineChar, l.inputDivisionChar, arg))
+		_, writeErr := l.interactive.stdin.Write(l.connUtils.MakeParam(l.inputNextLineChar,
+			l.inputDivisionChar, l.interactive.inputEndChar, arg))
+
 		if writeErr != nil {
 			return errlist.ErrG.NewError(writeErr, "process write error, %s", l.interactive.proc.Path)
-		}
-		var readBuf bytes.Buffer
-		readBuf.Grow(1)
-		_, copyErr := io.Copy(&readBuf, l.interactive.stdout)
-
-		if copyErr != nil {
-			return errlist.ErrG.NewError(copyErr, "process read error, %s", l.interactive.proc.Path)
 		}
 	} else {
 		cmd := exec.Command(l.nonInteractive.execPath, l.nonInteractive.args...)
@@ -116,19 +115,15 @@ func (l *localShConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]a
 	defer l.shMutex.Unlock()
 
 	if l.isInteractive {
-		_, writeErr := l.interactive.stdin.Write(l.connUtils.MakeParam(l.inputNextLineChar, l.inputDivisionChar, arg))
+		_, writeErr := l.interactive.stdin.Write(l.connUtils.MakeParam(l.inputNextLineChar,
+			l.inputDivisionChar, l.interactive.inputEndChar, arg))
 		if writeErr != nil {
 			return nil, nil, errlist.ErrG.NewError(writeErr, "process write error, %s", l.interactive.proc.Path)
 		}
-		var readBuf bytes.Buffer
-		readBuf.Grow(1024)
-		_, copyErr := io.Copy(&readBuf, l.interactive.stdout)
-		if copyErr != nil {
-			return nil, nil, errlist.ErrG.NewError(copyErr, "process read error, %s", l.interactive.proc.Path)
+		rows, name, err = l.connUtils.ParseResponseFromReader(l.interactive.stdout, l.newlineChar, l.splitChar, l.interactive.outputEndChar)
+		if err != nil {
+			err = errlist.ErrG.NewError(err, "parse failed response %s", l.interactive.proc.Path)
 		}
-
-		rows, name = l.connUtils.ParseResponse(readBuf.String(), l.newlineChar, l.splitChar)
-		err = nil
 	} else {
 		cmd := exec.Command(l.nonInteractive.execPath, l.nonInteractive.args...)
 		stdoutData, stdoutErr := cmd.Output()
@@ -153,6 +148,7 @@ func (l *localShConn) Close() error {
 		_ = l.interactive.stdin.Close()
 		_ = l.interactive.stdout.Close()
 		_ = l.interactive.proc.Process.Kill()
+		_, _ = l.interactive.proc.Process.Wait()
 	}
 	l.isCloseFlag.Store(true)
 	return nil

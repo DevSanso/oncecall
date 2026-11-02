@@ -59,7 +59,7 @@ func (c *cassandraConn) makeRowBuffer(cols []gocql.ColumnInfo) (data []any, err 
 		case gocql.TypeInt, gocql.TypeSmallInt:
 			data[i] = int(0)
 		default:
-			return nil, errlist.ErrG.NewError(nil, "not support type:%s", col.TypeInfo.Type())
+			return nil, errlist.ErrG.NewError(nil, "not support type:%v", col.TypeInfo.Type())
 		}
 
 	}

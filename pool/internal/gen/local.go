@@ -16,14 +16,16 @@ type localGenerator struct {
 	interactive       bool
 	outputSplitChar   string
 	outputNewlineChar string
+	outputEndChar     string
 	inputNextLineChar string
 	inputDivisionChar string
+	inputEndChar      string
 	args              []string
 }
 
 func NewLocalGenerator(info types.ConnConfig, lExtension log.LoggerLogExtension[any]) (Generator, error) {
 	var exists bool
-	var interactiveOpt, outputSplitCharOpt, outputNewlineCharOpt, inputNextLineCharOpt, inputDivisionCharOpt, argsOpt any
+	var interactiveOpt, outputSplitCharOpt, outputNewlineCharOpt, outputEndCharOpt, inputNextLineCharOpt, inputDivisionCharOpt, inputEndCharOpt, argsOpt any
 
 	interactiveOpt, exists = info.OptionMap["interactive"]
 	if !exists {
@@ -37,6 +39,10 @@ func NewLocalGenerator(info types.ConnConfig, lExtension log.LoggerLogExtension[
 	if !exists {
 		return nil, errlist.ErrG.NewError(prefix.NotExistsError, "output.newline not exists")
 	}
+	outputEndCharOpt, exists = info.OptionMap["output.endchar"]
+	if !exists {
+		return nil, errlist.ErrG.NewError(prefix.NotExistsError, "input.endchar not exists")
+	}
 	inputNextLineCharOpt, exists = info.OptionMap["input.nextline"]
 	if !exists {
 		return nil, errlist.ErrG.NewError(prefix.NotExistsError, "input.nextline not exists")
@@ -44,6 +50,10 @@ func NewLocalGenerator(info types.ConnConfig, lExtension log.LoggerLogExtension[
 	inputDivisionCharOpt, exists = info.OptionMap["input.division"]
 	if !exists {
 		return nil, errlist.ErrG.NewError(prefix.NotExistsError, "input.division not exists")
+	}
+	inputEndCharOpt, exists = info.OptionMap["input.endchar"]
+	if !exists {
+		return nil, errlist.ErrG.NewError(prefix.NotExistsError, "input.endchar not exists")
 	}
 	argsOpt, exists = info.OptionMap["args"]
 	var args []string = []string{}
@@ -64,6 +74,8 @@ func NewLocalGenerator(info types.ConnConfig, lExtension log.LoggerLogExtension[
 		outputNewlineChar: outputNewlineCharOpt.(string),
 		inputNextLineChar: inputNextLineCharOpt.(string),
 		inputDivisionChar: inputDivisionCharOpt.(string),
+		inputEndChar:      inputEndCharOpt.(string),
+		outputEndChar:     outputEndCharOpt.(string),
 		args:              args,
 	}, nil
 
@@ -71,5 +83,5 @@ func NewLocalGenerator(info types.ConnConfig, lExtension log.LoggerLogExtension[
 
 func (l *localGenerator) Gen(ctx context.Context, l2 log.LoggerDebugExtension[any]) (types.Conn, error) {
 	return connection.NewLocalShConn(
-		l.interactive, l.info.Name, l.outputSplitChar, l.outputNewlineChar, l.inputNextLineChar, l.inputDivisionChar, l.args...)
+		l.interactive, l.info.Name, l.outputSplitChar, l.outputNewlineChar, l.inputNextLineChar, l.inputDivisionChar, l.inputEndChar, l.outputEndChar, l.args...)
 }

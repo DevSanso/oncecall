@@ -1,16 +1,15 @@
-package vm
+package lua
 
 import (
 	"fmt"
 	"oncecall/utils/generic"
-	"oncecall/vm/lua"
 	"reflect"
 	"testing"
 )
 
 func TestLuaVm(t *testing.T) {
 
-	lua := lua.NewLuaVM()
+	lua := NewLuaVM()
 	g := generic.NewGenericSyncMap[string, any]()
 	_, err := lua.Do(g, "print('hello world')", nil)
 	if err != nil {
@@ -19,7 +18,7 @@ func TestLuaVm(t *testing.T) {
 }
 
 func TestPushGoData(t *testing.T) {
-	lua := lua.NewLuaVM()
+	lua := NewLuaVM()
 	g := generic.NewGenericSyncMap[string, any]()
 	_, err := lua.Do(g, `
 	local function test() 
@@ -39,7 +38,7 @@ func TestPushGoData(t *testing.T) {
 }
 
 func TestPushGoByteData(t *testing.T) {
-	lua := lua.NewLuaVM()
+	lua := NewLuaVM()
 	g := generic.NewGenericSyncMap[string, any]()
 	_, err := lua.Do(g, `
 	local function test() 
@@ -64,7 +63,7 @@ func TestPushGoByteData(t *testing.T) {
 }
 
 func TestGetGoData(t *testing.T) {
-	lua := lua.NewLuaVM()
+	lua := NewLuaVM()
 	g := generic.NewGenericSyncMap[string, any]()
 	data, err := lua.Do(g, `
 	
@@ -92,7 +91,7 @@ func TestGetGoData(t *testing.T) {
 }
 
 func TestGetGoBytesData(t *testing.T) {
-	lua := lua.NewLuaVM()
+	lua := NewLuaVM()
 	g := generic.NewGenericSyncMap[string, any]()
 	data, err := lua.Do(g, `
 	
@@ -140,7 +139,7 @@ func TestGetGoBytesData(t *testing.T) {
 }
 
 func TestUseCache(t *testing.T) {
-	lua := lua.NewLuaVM()
+	lua := NewLuaVM()
 	g := generic.NewGenericSyncMap[string, any]()
 	_, err := lua.Do(g, `
 		global_map.set("test",123)

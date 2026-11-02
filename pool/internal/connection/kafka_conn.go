@@ -3,7 +3,6 @@ package connection
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"oncecall/errlist"
 	"oncecall/errlist/prefix"
 	"oncecall/pool/types"
@@ -52,12 +51,12 @@ func (k *kafkaConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any
 		Count int `json:"count"`
 	}
 	if err := json.Unmarshal([]byte(arg.Query), &res); err != nil {
-		return nil, nil, errlist.ErrG.NewError(err, fmt.Sprintf("unmarshal query failed, %s", arg.Query))
+		return nil, nil, errlist.ErrG.NewError(err, "unmarshal query failed, %s", arg.Query)
 	}
 	var temp int64
 	rows, name, temp, err = k.ReadData(ctx, k.topic, res.Count, k.consumerOffset)
 	if err != nil {
-		return nil, nil, errlist.ErrG.NewError(err, fmt.Sprintf("read data failed (topic:%s, offset:%d)", k.topic, k.consumerOffset))
+		return nil, nil, errlist.ErrG.NewError(err, "read data failed (topic:%s, offset:%d)", k.topic, k.consumerOffset)
 	}
 	k.consumerOffset = temp
 	return rows, name, nil

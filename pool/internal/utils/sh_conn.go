@@ -1,10 +1,15 @@
 package utils
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"io"
+	"oncecall/errlist"
+	"oncecall/errlist/prefix"
 	"oncecall/pool/types"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -82,6 +87,71 @@ func (ShUtils) countFields(line string, sep string) int {
 
 	return count
 }
+func (s ShUtils) ParseResponseFromReader(reader io.Reader, newlineChar, splitChar, endChar string) (rows [][]any, name []string, err error) {
+	scanner := bufio.NewScanner(reader)
+
+	scanner.Split(func(data []byte, atEOF bool) (int, []byte, error) {
+		if idx := bytes.Index(data, []byte(newlineChar)); idx >= 0 {
+			return idx + len(newlineChar), data[:idx], nil
+		}
+
+		if slices.Compare(data, []byte(endChar)) == 0 {
+			return 0, nil, bufio.ErrFinalToken
+		}
+
+		if atEOF && len(data) > 0 {
+			return len(data), data[:len(data)-1], nil
+		}
+
+		return 0, nil, nil
+	})
+	lines := make([]string, 0, 100)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+
+	var res = make([][]any, len(lines)-1)
+	var dataLen = 0
+
+	if splitChar != "" {
+		for _, line := range lines {
+			if cnt := s.countFields(line, splitChar); dataLen < cnt {
+				if dataLen == 0 {
+					dataLen = cnt
+				} else if dataLen != cnt {
+					return nil, nil, errlist.ErrG.NewError(prefix.SentinelCatchError, "not eq, prev[%d] != current[%d]", dataLen, cnt)
+				}
+			}
+		}
+
+		if dataLen <= 0 {
+			dataLen = 1
+		}
+
+		name = make([]string, dataLen)
+		for idx, rowName := range strings.Split(lines[0], splitChar) {
+			name[idx] = rowName
+		}
+
+		for idx, line := range lines[1:] {
+			res[idx] = make([]any, dataLen)
+			for dIdx, data := range s.splitLine(line, splitChar) {
+				res[idx][dIdx] = data
+			}
+		}
+	} else {
+		name = make([]string, 1)
+		name[0] = lines[0]
+
+		for idx, line := range lines[1:] {
+			res[idx] = make([]any, 1)
+			res[idx][0] = line
+		}
+	}
+
+	rows = res
+	return
+}
 
 func (s ShUtils) ParseResponse(data, newlineChar, splitChar string) (rows [][]any, name []string) {
 	lines := s.splitLineKeepQuote(data, newlineChar)
@@ -121,7 +191,7 @@ func (s ShUtils) ParseResponse(data, newlineChar, splitChar string) (rows [][]an
 	return
 }
 
-func (ShUtils) MakeParam(inputNextLineChar string, inputDivisionChar string, arg *types.Args) []byte {
+func (ShUtils) MakeParam(inputNextLineChar string, inputDivisionChar string, endString string, arg *types.Args) []byte {
 	var buf bytes.Buffer
 
 	for rowIdx := range arg.Args {
@@ -149,5 +219,6 @@ func (ShUtils) MakeParam(inputNextLineChar string, inputDivisionChar string, arg
 		buf.WriteString(inputNextLineChar)
 	}
 
+	buf.WriteString(endString)
 	return buf.Bytes()
 }
