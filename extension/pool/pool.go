@@ -38,13 +38,15 @@ type SimplePoolExtension[T io.Closer, R any] struct {
 	Context     context.Context
 	IdleTimeout time.Duration
 
-	once      sync.Once
-	initLock  sync.Mutex
-	isInit    atomic.Bool
-	isClose   atomic.Bool
-	chanPool  chan simplePoolItem[T]
-	useCnt    atomic.Int32
-	accErrCnt atomic.Int64
+	once         sync.Once
+	initLock     sync.Mutex
+	isInit       atomic.Bool
+	isClose      atomic.Bool
+	chanPool     chan simplePoolItem[T]
+	useCnt       atomic.Int32
+	accErrCnt    atomic.Int64
+	realMaxCnt   int
+	chanPushLock sync.Mutex
 }
 
 func (u *SimplePoolExtension[T, R]) gen() (T, error) {
@@ -69,43 +71,72 @@ func (u *SimplePoolExtension[T, R]) Use(useFn func(data T) (R, error)) (ret R, e
 		return ret, errlist.ErrG.NewError(prefix.ClosedError, "SyncExpirePool already closed")
 	}
 
+	select {
+	case <-u.Context.Done():
+		_ = u.Close()
+		return ret, errlist.ErrG.NewError(prefix.ClosedError, "SyncExpirePool already camcel context")
+	default:
+	}
+
 	if !u.isInit.Load() {
 		u.initLock.Lock()
 		u.once.Do(func() {
-			maxCnt := 10
+			u.realMaxCnt = 10
 			if u.Max > 0 {
-				maxCnt = u.Max
+				u.realMaxCnt = u.Max
 			}
-			u.chanPool = make(chan simplePoolItem[T], maxCnt)
+
+			u.chanPool = make(chan simplePoolItem[T], u.realMaxCnt)
 		})
+		u.Metric.Assignment(u.Name, poolExtensionImplMetricFullKey, float64(u.realMaxCnt))
 		u.initLock.Unlock()
 		u.isInit.Store(true)
 	}
 
 	var item simplePoolItem[T]
-	select {
-	case item = <-u.chanPool:
 
-	default:
-		var genItemVal T
-		genItemVal, err = u.gen()
-		if err != nil {
-			u.accErrCnt.Add(1)
-			u.Metric.Assignment(u.Name, poolExtensionImplMetricAccErrKey, float64(u.accErrCnt.Load()))
-			return ret, errlist.ErrG.NewError(err, "use, gen failed")
+getLoop:
+	for {
+		select {
+		case item = <-u.chanPool:
+			if u.IdleTimeout > 0 && item.lastUseTime != 0 && (time.Duration(time.Now().Second())*time.Second)-item.lastUseTime > u.IdleTimeout {
+				_ = item.Data.Close()
+				u.Metric.Assignment(u.Name, poolExtensionImplMetricIdleKey, float64(len(u.chanPool)))
+				continue
+			}
+			break getLoop
+		default:
+			var genItemVal T
+			genItemVal, err = u.gen()
+			if err != nil {
+				u.accErrCnt.Add(1)
+				u.Metric.Assignment(u.Name, poolExtensionImplMetricAccErrKey, float64(u.accErrCnt.Load()))
+				return ret, errlist.ErrG.NewError(err, "use, gen failed")
+			}
+			item.Data = genItemVal
+			item.lastUseTime = 0
+			break getLoop
 		}
-		item.Data = genItemVal
-		item.lastUseTime = 0
 	}
 
 	u.useCnt.Add(1)
+	u.Metric.Assignments(u.Name, map[string]float64{
+		poolExtensionImplMetricIdleKey: float64(len(u.chanPool)),
+		poolExtensionImplMetricUseKey:  float64(u.useCnt.Load()),
+	})
+
 	ret, useErr := useFn(item.Data)
+
+	u.useCnt.Add(-1)
+	u.Metric.Assignments(u.Name, map[string]float64{
+		poolExtensionImplMetricIdleKey: float64(len(u.chanPool)),
+		poolExtensionImplMetricUseKey:  float64(u.useCnt.Load()),
+	})
+
 	if useErr != nil {
 		_ = item.Data.Close()
-		u.useCnt.Add(-1)
 		u.accErrCnt.Add(1)
 		u.Metric.Assignments(u.Name, map[string]float64{
-			poolExtensionImplMetricFullKey:   float64(u.Max),
 			poolExtensionImplMetricIdleKey:   float64(len(u.chanPool)),
 			poolExtensionImplMetricUseKey:    float64(u.useCnt.Load()),
 			poolExtensionImplMetricAccErrKey: float64(u.accErrCnt.Load()),
@@ -113,27 +144,28 @@ func (u *SimplePoolExtension[T, R]) Use(useFn func(data T) (R, error)) (ret R, e
 		return ret, errlist.ErrG.NewError(useErr, "pool.use execute failed")
 	}
 
-	if u.IdleTimeout > 0 && item.lastUseTime != 0 && (time.Duration(time.Now().Second())*time.Second)-item.lastUseTime > u.IdleTimeout {
-		_ = item.Data.Close()
-	} else if !u.isClose.Load() {
-		u.useCnt.Add(-1)
-		item.lastUseTime = time.Duration(time.Now().Second()) * time.Second
-		u.chanPool <- item
+	if !u.isClose.Load() {
+
+		u.chanPushLock.Lock()
+		if len(u.chanPool) < u.realMaxCnt {
+			item.lastUseTime = time.Duration(time.Now().Second()) * time.Second
+			u.chanPool <- item
+		} else {
+			_ = item.Data.Close()
+		}
 		u.Metric.Assignments(u.Name, map[string]float64{
-			poolExtensionImplMetricFullKey: float64(u.Max),
 			poolExtensionImplMetricIdleKey: float64(len(u.chanPool)),
 			poolExtensionImplMetricUseKey:  float64(u.useCnt.Load()),
 		})
+		u.chanPushLock.Unlock()
 	}
 	return
 }
 
 func (u *SimplePoolExtension[T, R]) Close() error {
-	if u.isClose.Load() {
+	if u.isClose.Swap(true) {
 		return errlist.ErrG.NewError(prefix.ClosedError, "SyncExpirePool already closed")
 	}
-	u.isClose.Store(true)
-
 loop:
 	for {
 		select {
@@ -144,7 +176,9 @@ loop:
 			break loop
 		}
 	}
-	close(u.chanPool)
+	if u.chanPool != nil {
+		close(u.chanPool)
+	}
 	u.Metric.DeleteFromName(u.Name)
 	return nil
 }

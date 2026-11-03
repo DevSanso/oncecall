@@ -53,11 +53,11 @@ func (m *errorTypeMap) NewError(err error, format string, args ...any) error {
 var (
 	ErrG = errorTypeMap{m: map[string]string{
 		"cfg":         "Config",
-		"conn":        "Connection",
+		"pool":        "Connection",
 		"cmd":         "App",
-		"initialize":  "ProcInit",
 		"vm":          "Interpreter",
 		"utils":       "PackageUtils",
+		"extension":   "PackageExtensionUtils",
 		"tests":       "Tests",
 		"__unknown__": "Unknown",
 	}, once: sync.Once{}, projectRoot: ""}

@@ -69,31 +69,29 @@ func (r *redisConn) RunExecute(ctx context.Context, arg *types.Args) error {
 func (r *redisConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, err error) {
 	trimQuery := strings.ReplaceAll(arg.Query, "\n", "")
 	trimQuery = strings.ReplaceAll(trimQuery, "\r", "")
-	if arg.Args == nil || len(arg.Args) <= 0 {
-		ret := r.conn.Do(ctx, r.commonUtils.SplitRespectQuotesAny(trimQuery)...)
-
-		if ret.Err() != nil {
-			return nil, nil, errlist.ErrG.NewError(ret.Err(), "query:[%s]", trimQuery)
-		}
-		return nil, nil, nil
-	}
 
 	if arg.IsTransaction {
 		return nil, nil, errlist.ErrG.NewError(nil, "ERROR: RunExecute exec(tran multi) not support")
 	}
 
-	param := arg.Args[0]
-	realP := make([]any, 0, len(param)+1)
-	realP = append(realP, r.commonUtils.SplitRespectQuotesAny(trimQuery)...)
-	realP = append(realP, param...)
+	var doRet *redis.Cmd
+	if arg.Args == nil || len(arg.Args) <= 0 {
+		doRet = r.conn.Do(ctx, r.commonUtils.SplitRespectQuotesAny(trimQuery)...)
 
-	loopRet := r.conn.Do(ctx, realP...)
-	if (loopRet != nil) && loopRet.Err() != nil {
-		return nil, nil, errlist.ErrG.NewError(loopRet.Err(), "query:[%s]", trimQuery)
+	} else {
+		param := arg.Args[0]
+		realP := make([]any, 0, len(param)+1)
+		realP = append(realP, r.commonUtils.SplitRespectQuotesAny(trimQuery)...)
+		realP = append(realP, param...)
+
+		doRet = r.conn.Do(ctx, realP...)
+	}
+	if (doRet != nil) && doRet.Err() != nil {
+		return nil, nil, errlist.ErrG.NewError(doRet.Err(), "query:[%s]", trimQuery)
 	}
 
-	buf := make([][]any, 0, 1)
-	if err := r.parseOutputAny(loopRet.Val(), 0, buf); err != nil {
+	var buf [][]any
+	if buf, err = r.parseOutputAny(doRet.Val()); err != nil {
 		return nil, nil, errlist.ErrG.NewError(err, "query:[%s]", trimQuery)
 	}
 
@@ -106,43 +104,22 @@ func (r *redisConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any
 	return buf, name, nil
 }
 
-func (r *redisConn) parseOutputAny(val any, idx int, m [][]any) error {
-	var ret [][]any = m
-	var current = idx
+func (r *redisConn) parseOutputAny(val any) ([][]any, error) {
+	var ret [][]any = make([][]any, 1)
 
-	if current > len(ret) {
-		for start := len(ret); start <= current; start++ {
-			ret = append(ret, make([]any, 0))
+	switch v := val.(type) {
+	case []any:
+		ret[0] = make([]any, len(v))
+		for idx, data := range v {
+			ret[0][idx] = data
 		}
-	}
-
-	switch val.(type) {
-	case int64:
-		temp := append(ret[current], val.(int64))
-		ret[current] = temp
-	case float64:
-		temp := append(ret[current], val.(float64))
-		ret[current] = temp
-	case string:
-		temp := append(ret[current], val.(string))
-		ret[current] = temp
-	case []interface{}:
-		var err error
-
-		for _, v := range val.([]interface{}) {
-			current += 1
-			if err = r.parseOutputAny(v, current, m); err != nil {
-				break
-			}
-		}
-		if err != nil {
-			return err
-		}
+	case int64, float64, string, bool:
+		ret[0] = []any{v}
 	default:
-		return errlist.ErrG.NewError(nil, "Parse not support %s", reflect.ValueOf(val).Type().Name())
+		return nil, errlist.ErrG.NewError(nil, "Parse not support %s", reflect.ValueOf(val).Type().Name())
 	}
 
-	return nil
+	return ret, nil
 }
 
 func (r *redisConn) parseOutputStr(val interface{}, idx int, m [][]string) error {

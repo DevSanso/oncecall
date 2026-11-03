@@ -11,6 +11,13 @@ type SimpleMetricExtension struct {
 	rw sync.RWMutex
 }
 
+func (s *SimpleMetricExtension) Get(name, key string) float64 {
+	s.rw.RLock()
+	defer s.rw.RUnlock()
+
+	return s.m[name][key]
+}
+
 func (s *SimpleMetricExtension) DeleteFromName(name string) {
 	s.rw.Lock()
 	defer s.rw.Unlock()

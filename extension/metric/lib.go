@@ -15,5 +15,6 @@ type MetricExtension interface {
 	MetricSetExtension
 	MetricDropExtension
 	Reset()
+	Get(name, key string) float64
 	Print() string
 }
