@@ -20,7 +20,7 @@ func newTestPool(t *testing.T, ctx context.Context, m metric.MetricExtension) Po
 		return reader, nil
 	}
 
-	var pool PoolExtension[*io.PipeReader, int] = &SimplePoolExtension[*io.PipeReader, int]{
+	var pool PoolExtension[*io.PipeReader, int] = &TimeoutPoolExtension[*io.PipeReader, int]{
 		Name:        "Test",
 		Gen:         gen,
 		Max:         10,

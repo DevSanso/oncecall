@@ -86,6 +86,8 @@ type ScriptConfig struct {
 	} `toml:"option"`
 
 	Plans struct {
+		VmLang   *string `toml:"vm_lang"`
+
 		Read []struct {
 			ReadIdent string              `toml:"identifier"`
 			ReadPlan  ScriptQueryReadPlan `toml:"read_plan"`

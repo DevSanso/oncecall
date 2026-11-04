@@ -61,7 +61,7 @@ func NewConnPool(ctx context.Context, ident string, info types.ConnConfig,
 		lExtension:    poolLogExtension,
 	}
 
-	cp.pExtension = &pool.SimplePoolExtension[types.Conn, retWrapper]{
+	cp.pExtension = &pool.TimeoutPoolExtension[types.Conn, retWrapper]{
 		Name: ident,
 		Gen: func(ctx context.Context, l log.LoggerDebugExtension[any]) (types.Conn, error) {
 			return cp.connGenerator.Gen(ctx, l)
