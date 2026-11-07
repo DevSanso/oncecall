@@ -2,21 +2,19 @@ package connection
 
 import (
 	"context"
-	"oncecall/pool/types"
+	"oncecall/connpool/types"
 	"strings"
 	"sync"
 
+	"oncecall/connpool/internal/ffi"
 	"oncecall/errlist"
-	"oncecall/pool/internal/ffi"
 )
-
 
 type odbcConn struct {
 	mu     sync.Mutex
 	raw    *ffi.ODBCFfi
 	closed bool
 }
-
 
 func NewOdbcConn(raw *ffi.ODBCFfi) types.Conn {
 	return &odbcConn{raw: raw}

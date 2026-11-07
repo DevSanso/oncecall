@@ -2,10 +2,10 @@ package gen
 
 import (
 	"context"
+	"oncecall/connpool/internal/connection"
+	"oncecall/connpool/types"
 	"oncecall/errlist"
 	"oncecall/extension/log"
-	"oncecall/pool/internal/connection"
-	"oncecall/pool/types"
 	"strconv"
 	"strings"
 

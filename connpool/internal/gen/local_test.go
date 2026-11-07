@@ -2,7 +2,7 @@ package gen
 
 import (
 	"context"
-	"oncecall/pool/types"
+	"oncecall/connpool/types"
 	"os"
 	"reflect"
 	"testing"

@@ -3,9 +3,9 @@ package connection
 import (
 	"bytes"
 	"context"
+	"oncecall/connpool/internal/utils"
+	"oncecall/connpool/types"
 	"oncecall/errlist"
-	"oncecall/pool/internal/utils"
-	"oncecall/pool/types"
 
 	"golang.org/x/crypto/ssh"
 )

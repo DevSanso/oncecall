@@ -2,21 +2,21 @@ package gen
 
 import (
 	"context"
+	"oncecall/connpool/internal/connection"
+	"oncecall/connpool/internal/ffi"
+	"oncecall/connpool/types"
 	"oncecall/errlist"
 	"oncecall/errlist/prefix"
 	"oncecall/extension/log"
-	"oncecall/pool/internal/connection"
-	"oncecall/pool/internal/ffi"
-	"oncecall/pool/types"
 	"reflect"
 )
 
 type odbcGenerator struct {
-	info    types.ConnConfig
+	info types.ConnConfig
 }
 
 func NewODBCGenerator(info types.ConnConfig, lExtension log.LoggerLogExtension[any]) (Generator, error) {
-	return &odbcGenerator{info : info}, nil
+	return &odbcGenerator{info: info}, nil
 }
 
 func (c *odbcGenerator) Gen(ctx context.Context, l log.LoggerDebugExtension[any]) (types.Conn, error) {

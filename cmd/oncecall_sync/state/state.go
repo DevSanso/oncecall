@@ -2,9 +2,9 @@ package state
 
 import (
 	"context"
+	"oncecall/connpool/types"
 	"oncecall/errlist"
 	"oncecall/errlist/prefix"
-	"oncecall/pool/types"
 	"oncecall/utils/generic"
 	"oncecall/vm"
 	"oncecall/vm/lua"

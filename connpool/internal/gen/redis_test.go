@@ -6,7 +6,7 @@ import (
 
 	"testing"
 
-	"oncecall/pool/types"
+	"oncecall/connpool/types"
 )
 
 func setupRedisDB() (types.Conn, error) {

@@ -6,7 +6,7 @@ import (
 	"oncecall/extension/log"
 	"testing"
 
-	"oncecall/pool/types"
+	"oncecall/connpool/types"
 )
 
 const testTable = "std_sql_conn_test"

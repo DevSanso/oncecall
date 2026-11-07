@@ -1,14 +1,14 @@
-package pool
+package connpool
 
 import (
 	"context"
+	"oncecall/connpool/internal/gen"
+	"oncecall/connpool/types"
 	"oncecall/define"
 	"oncecall/errlist"
 	"oncecall/extension/log"
 	"oncecall/extension/metric"
 	"oncecall/extension/pool"
-	"oncecall/pool/internal/gen"
-	"oncecall/pool/types"
 	"time"
 )
 

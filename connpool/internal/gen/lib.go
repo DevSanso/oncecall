@@ -2,8 +2,8 @@ package gen
 
 import (
 	"context"
+	"oncecall/connpool/types"
 	"oncecall/extension/log"
-	"oncecall/pool/types"
 )
 
 type Generator interface {

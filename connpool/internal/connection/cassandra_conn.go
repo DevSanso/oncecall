@@ -2,8 +2,8 @@ package connection
 
 import (
 	"context"
+	"oncecall/connpool/types"
 	"oncecall/errlist"
-	"oncecall/pool/types"
 
 	gocql "github.com/apache/cassandra-gocql-driver/v2"
 )

@@ -3,9 +3,9 @@ package connection
 import (
 	"context"
 	"encoding/json"
+	"oncecall/connpool/types"
 	"oncecall/errlist"
 	"oncecall/errlist/prefix"
-	"oncecall/pool/types"
 
 	"github.com/IBM/sarama"
 )

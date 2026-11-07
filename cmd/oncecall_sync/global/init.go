@@ -11,9 +11,9 @@ import (
 	log2 "oncecall/cmd/oncecall_sync/global/log"
 	"oncecall/cmd/oncecall_sync/global/manage"
 	"oncecall/cmd/oncecall_sync/global/metric"
+	"oncecall/connpool"
 	"oncecall/extension/log"
 	"oncecall/extension/parser"
-	"oncecall/pool"
 	"oncecall/utils"
 	"os"
 	"path/filepath"
@@ -29,7 +29,6 @@ var (
 	cpu       = flag.Int("cpu", runtime.NumCPU()/2, "cpu core")
 	syncIdent = flag.String("syncIdent", "", "sync conn ident")
 )
-
 
 var (
 	_closer []io.Closer
@@ -139,7 +138,7 @@ func init() {
 	_closer = append(_closer, log2.Log.Manage)
 
 	var managePErr error
-	manage.ManageP, managePErr = pool.NewConnPool(
+	manage.ManageP, managePErr = connpool.NewConnPool(
 		context.Background(),
 		"internalManage",
 		config.Config.ManageDB,

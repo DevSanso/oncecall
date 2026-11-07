@@ -4,9 +4,9 @@ import (
 	"context"
 	"oncecall/cmd/oncecall_sync/global/config"
 	"oncecall/cmd/oncecall_sync/global/manage"
+	"oncecall/connpool/types"
 	"oncecall/errlist"
 	"oncecall/errlist/prefix"
-	"oncecall/pool/types"
 )
 
 type DbFetcher interface {

@@ -3,10 +3,10 @@ package connection
 import (
 	"context"
 	"io"
+	"oncecall/connpool/internal/utils"
+	"oncecall/connpool/types"
 	"oncecall/errlist"
 	"oncecall/errlist/prefix"
-	"oncecall/pool/internal/utils"
-	"oncecall/pool/types"
 	"os/exec"
 	"sync"
 	"sync/atomic"

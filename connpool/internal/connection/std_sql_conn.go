@@ -3,8 +3,8 @@ package connection
 import (
 	"context"
 	"database/sql"
+	"oncecall/connpool/types"
 	"oncecall/errlist"
-	"oncecall/pool/types"
 	"slices"
 	"strings"
 )

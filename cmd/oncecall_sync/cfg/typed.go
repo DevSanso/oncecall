@@ -1,7 +1,7 @@
 package cfg
 
 import (
-	"oncecall/pool/types"
+	"oncecall/connpool/types"
 )
 
 type ConnConfig = types.ConnConfig
@@ -86,7 +86,7 @@ type ScriptConfig struct {
 	} `toml:"option"`
 
 	Plans struct {
-		VmLang   *string `toml:"vm_lang"`
+		VmLang *string `toml:"vm_lang"`
 
 		Read []struct {
 			ReadIdent string              `toml:"identifier"`

@@ -2,11 +2,11 @@ package gen
 
 import (
 	"context"
+	"oncecall/connpool/internal/connection"
+	"oncecall/connpool/types"
 	"oncecall/errlist"
 	"oncecall/errlist/prefix"
 	"oncecall/extension/log"
-	"oncecall/pool/internal/connection"
-	"oncecall/pool/types"
 
 	"golang.org/x/crypto/ssh"
 )

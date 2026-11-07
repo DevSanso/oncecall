@@ -2,11 +2,11 @@ package gen
 
 import (
 	"context"
+	"oncecall/connpool/internal/connection"
+	"oncecall/connpool/types"
 	"oncecall/errlist"
 	"oncecall/errlist/prefix"
 	"oncecall/extension/log"
-	"oncecall/pool/internal/connection"
-	"oncecall/pool/types"
 	"strconv"
 
 	"github.com/redis/go-redis/v9"

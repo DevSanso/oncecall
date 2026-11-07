@@ -2,12 +2,12 @@ package gen
 
 import (
 	"context"
+	"oncecall/connpool/internal/connection"
+	"oncecall/connpool/internal/utils"
+	"oncecall/connpool/types"
 	"oncecall/errlist"
 	"oncecall/errlist/prefix"
 	"oncecall/extension/log"
-	"oncecall/pool/internal/connection"
-	"oncecall/pool/internal/utils"
-	"oncecall/pool/types"
 )
 
 type localGenerator struct {

@@ -93,10 +93,12 @@ def parse_msg(path, global_codes, global_names):
     return entries
 
 
-def generate_code(entries):
+def generate_code(base_idx, base, entries):
     lines = [
         "package msg",
         "",
+        f"const {base.upper()}_TAGET MessageTarget = {base_idx}",
+
         "const (",
     ]
 
@@ -109,44 +111,35 @@ def generate_code(entries):
 
     return "\n".join(lines) + "\n"
 
-
+"""
+	messageMap[0] = map[MessageCode]struct{Level MessageLevel; Name string; Text string} {
+		1 : struct{Level MessageLevel; Name string; Text string}{
+			Level: "",
+			Name: "",
+			Text: "",
+		},
+	}
+"""
 def generate_message(base, entries):
-    func_name = get_func_name(base)
-
+    target_idx_name = f"{base.upper()}_TAGET"
+  
     lines = [
         "package msg",
         "",
-        'import "fmt"',
-        "",
-        f"var {base}Messages = map[MessageCode]struct {{",
-        "\tLevel MessageLevel",
-        "\tName string",
-        "\tText string",
-        "}{",
+        "func init() {", 
+        "\tmessageMap[{0}] = map[MessageCode]MessageDesc {{".format(target_idx_name)
     ]
 
     for entry in entries:
         lines.append(
-            f'\t{entry["name"]}: {{'
+            f"\t\t{entry["name"]} : {{"
             f'Level: {entry["level"]}, '
             f'Name: {json.dumps(entry["name"])}, '
             f'Text: {json.dumps(entry["message"], ensure_ascii=False)}'
-            f'}},'
+            "},\n"
         )
 
-    lines.extend([
-        "}",
-        "",
-        f"func {func_name}Message(code MessageCode) (MessageLevel, string, string) {{",
-        f"\tmessage, ok := {base}Messages[code]",
-        "",
-        "\tif !ok {",
-        '\t\tpanic("undefined message code: " + fmt.Sprint(code))',
-        "\t}",
-        "",
-        "\treturn message.Level, message.Name, message.Text",
-        "}",
-    ])
+    lines.append("\t}\n}\n")
 
     return "\n".join(lines) + "\n"
 
@@ -180,7 +173,7 @@ def main():
     generated_files = set()
 
     print("Source encoding: UTF-8")
-
+    base_idx = 0
     for path in files:
         base = path.stem
 
@@ -199,10 +192,11 @@ def main():
         msg_file = OUT_DIR / f"{base}_msg.go"
 
         code_file.write_text(
-            generate_code(entries),
+            generate_code(base_idx, base, entries),
             encoding="utf-8",
             newline="\n"
         )
+        base_idx += 1
 
         msg_file.write_text(
             generate_message(base, entries),
@@ -231,8 +225,9 @@ def main():
 
 
 if __name__ == "__main__":
+    import traceback
     try:
         main()
     except Exception as error:
-        print(f"ERROR: {error}", file=sys.stderr)
+        print(f"ERROR: {traceback.print_exc()}", file=sys.stderr)
         sys.exit(1)

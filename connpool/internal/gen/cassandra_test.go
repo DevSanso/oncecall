@@ -6,9 +6,8 @@ import (
 	"slices"
 	"testing"
 
-	"oncecall/pool/types"
+	"oncecall/connpool/types"
 )
-
 
 func setupCassandraDB() (types.Conn, error) {
 	genC, err := NewCassandraGenerator(types.ConnConfig{
@@ -48,7 +47,7 @@ func TestCassandraQuery(t *testing.T) {
 
 	rdata, rname, rerr := conn.RunQuery(context.Background(), &types.Args{
 		Query: "select (int)? as n1, (varchar)? as n2, (double)? as n3 from system.local",
-		Args: [][]any {
+		Args: [][]any{
 			data,
 		},
 		IsTransaction: false,

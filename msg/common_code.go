@@ -1,5 +1,6 @@
 package msg
 
+const COMMON_TAGET MessageTarget = 0
 const (
 	PROC_STARTUP MessageCode = 1
 	PROC_CORE    MessageCode = 99999

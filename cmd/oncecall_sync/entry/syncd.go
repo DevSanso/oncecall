@@ -10,10 +10,10 @@ import (
 	"oncecall/cmd/oncecall_sync/global/metric"
 	"oncecall/cmd/oncecall_sync/plan"
 	"oncecall/cmd/oncecall_sync/state"
+	"oncecall/connpool"
+	"oncecall/connpool/types"
 	"oncecall/errlist"
 	"oncecall/errlist/prefix"
-	"oncecall/pool"
-	"oncecall/pool/types"
 	"oncecall/utils"
 	"oncecall/utils/generic"
 	"slices"
@@ -36,7 +36,7 @@ func syncdResetDbList(s state.SharedState, fetcher syncd.DbFetcher) error {
 		if cmp.Server == info.Server && cmp.Name == info.Name {
 			continue
 		}
-		newP, newErr := pool.NewConnPool(s.GetContext(), ident, info, metric.Metric, log.Log.Gen, log.Log.Gen, log.Log.Conn)
+		newP, newErr := connpool.NewConnPool(s.GetContext(), ident, info, metric.Metric, log.Log.Gen, log.Log.Gen, log.Log.Conn)
 		if newErr != nil {
 			return errlist.ErrG.NewError(newErr, "new conn pool failed")
 		}
@@ -46,7 +46,7 @@ func syncdResetDbList(s state.SharedState, fetcher syncd.DbFetcher) error {
 	return nil
 }
 
-func syncdResetScriptPlan(s state.SharedState, private *syncd.PrivateState,  ks []string, scriptList map[string]generic.Pair[[16]byte, cfg.ScriptConfig]) {
+func syncdResetScriptPlan(s state.SharedState, private *syncd.PrivateState, ks []string, scriptList map[string]generic.Pair[[16]byte, cfg.ScriptConfig]) {
 	private.PlanMap.Range(func(key string, _ syncd.PlanData) bool {
 		if !slices.Contains(ks, key) {
 			private.PlanMap.Delete(key)
@@ -76,8 +76,6 @@ func syncdResetScriptPlan(s state.SharedState, private *syncd.PrivateState,  ks 
 		})
 	}
 }
-
-
 
 func syncdResetScript(s state.SharedState, private *syncd.PrivateState, fetcher syncd.DbFetcher) error {
 	scriptList, listErr := fetcher.Script(s.GetContext())
@@ -118,7 +116,7 @@ func syncdBackground(self types.ConnPool, shared state.SharedStateManageCtl, pri
 			return true
 		})
 
-		utils.IntervalSleep(time.Second, time.Millisecond * 10)
+		utils.IntervalSleep(time.Second, time.Millisecond*10)
 	}
 }
 
@@ -138,7 +136,7 @@ func SyncdEntry(ctx context.Context) {
 		return
 	}
 
-	selfConn, selfConnErr := pool.NewConnPool(ctx, config.SyncIdent, selfConnInfo, metric.Metric, log.Log.Gen, log.Log.Gen, log.Log.Conn)
+	selfConn, selfConnErr := connpool.NewConnPool(ctx, config.SyncIdent, selfConnInfo, metric.Metric, log.Log.Gen, log.Log.Gen, log.Log.Conn)
 	if selfConnErr != nil {
 		frame := errlist.ErrG.NewError(selfConnErr, "self get conn failed %s", config.SyncIdent)
 		log.Log.Proc.Error("%s", frame.Error())
@@ -171,6 +169,6 @@ entry:
 			break entry
 		}
 
-		utils.IntervalSleep(time.Minute, time.Millisecond * 100)
+		utils.IntervalSleep(time.Minute, time.Millisecond*100)
 	}
 }

@@ -3,11 +3,11 @@ package gen
 import (
 	"context"
 	"database/sql"
+	"oncecall/connpool/internal/connection"
+	"oncecall/connpool/internal/utils"
+	"oncecall/connpool/types"
 	"oncecall/errlist"
 	"oncecall/extension/log"
-	"oncecall/pool/internal/connection"
-	"oncecall/pool/internal/utils"
-	"oncecall/pool/types"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"

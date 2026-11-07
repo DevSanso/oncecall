@@ -2,9 +2,9 @@ package connection
 
 import (
 	"context"
+	"oncecall/connpool/internal/utils"
+	"oncecall/connpool/types"
 	"oncecall/errlist"
-	"oncecall/pool/internal/utils"
-	"oncecall/pool/types"
 	"reflect"
 	"strconv"
 	"strings"

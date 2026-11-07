@@ -2,15 +2,15 @@ package utils
 
 import (
 	"fmt"
+	"oncecall/connpool/types"
 	"oncecall/define"
 	"oncecall/errlist"
 	"oncecall/errlist/prefix"
-	"oncecall/pool/types"
 )
 
-type StdSqlUtils struct {}
+type StdSqlUtils struct{}
 
-func (StdSqlUtils) GetConnUrlAndDriver(c *types.ConnConfig)  (driver string, url string, e error) {
+func (StdSqlUtils) GetConnUrlAndDriver(c *types.ConnConfig) (driver string, url string, e error) {
 	switch define.POOLType(c.DBType) {
 	case define.SQLITE:
 		driver = "sqlite3"

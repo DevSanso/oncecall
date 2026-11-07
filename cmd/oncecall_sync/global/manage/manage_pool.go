@@ -1,6 +1,6 @@
 package manage
 
-import "oncecall/pool/types"
+import "oncecall/connpool/types"
 
 var (
 	ManageP types.ConnPoolCloser

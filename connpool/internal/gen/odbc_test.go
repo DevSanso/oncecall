@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"testing"
 
-	"oncecall/pool/types"
+	"oncecall/connpool/types"
 )
 
 func setupOdbcDB() (types.Conn, error) {
