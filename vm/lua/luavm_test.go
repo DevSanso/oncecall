@@ -19,19 +19,23 @@ func TestLuaVm(t *testing.T) {
 
 func TestPushGoData(t *testing.T) {
 	lua := NewLuaVM()
+
+	dataG := generic.NewGenericSyncMap[int, [][]any]()
+	dataG.Store(0, [][]any{{1234, "hello"}, {222.23, "world"}})
+
 	g := generic.NewGenericSyncMap[string, any]()
 	_, err := lua.Do(g, `
 	local function test() 
 		local test1 = {}
 		local test2 = 'sdfs'
-		for k, val in pairs(oncecall_get_data()) do
+		for k, val in pairs(oncecall_get_data(0)) do
 			for index, value in ipairs(val) do
 				print(index, value)
 			end
 		end
 	end
 	test()
-	`, [][]any{{1234, "hello"}, {222.23, "world"}})
+	`, dataG)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,11 +44,13 @@ func TestPushGoData(t *testing.T) {
 func TestPushGoByteData(t *testing.T) {
 	lua := NewLuaVM()
 	g := generic.NewGenericSyncMap[string, any]()
+	dataG := generic.NewGenericSyncMap[int, [][]any]()
+	dataG.Store(2, [][]any{{1234, []byte("hello")}, {222.23, []byte("world")}})
 	_, err := lua.Do(g, `
 	local function test() 
 		local test1 = {}
 		local test2 = 'sdfs'
-		for k, val in pairs(oncecall_get_data()) do
+		for k, val in pairs(oncecall_get_data(2)) do
 			print('test', k,val, '\n')
 			for index, value in pairs(val) do
 				print('ele ',index,value)
@@ -56,7 +62,7 @@ func TestPushGoByteData(t *testing.T) {
 		end
 	end
 	test()
-	`, [][]any{{1234, []byte("hello")}, {222.23, []byte("world")}})
+	`, dataG)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,6 +71,9 @@ func TestPushGoByteData(t *testing.T) {
 func TestGetGoData(t *testing.T) {
 	lua := NewLuaVM()
 	g := generic.NewGenericSyncMap[string, any]()
+
+	dataG := generic.NewGenericSyncMap[int, [][]any]()
+	dataG.Store(12, [][]any{{1234, "hello"}, {222, "world"}})
 	data, err := lua.Do(g, `
 	
 	local testing = {
@@ -77,7 +86,7 @@ func TestGetGoData(t *testing.T) {
 	end
 	test()
 	
-	`, [][]any{{1234, "hello"}, {222, "world"}})
+	`, dataG)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +113,7 @@ func TestGetGoBytesData(t *testing.T) {
 	end
 	test()
 	
-	`, [][]any{{1234, "hello"}, {222, "world"}})
+	`, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +138,7 @@ func TestGetGoBytesData(t *testing.T) {
 	end
 	test()
 	
-	`, [][]any{{1234, "hello"}, {222, "world"}})
+	`, nil)
 
 	if err == nil {
 		t.Fatal("check failed byte range")
@@ -149,7 +158,7 @@ func TestUseCache(t *testing.T) {
 		print(global_map.get("test"))
 		print(global_map.get("test2222"))
 
-	`, [][]any{{1234, "hello"}, {222, "world"}})
+	`, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -8,7 +8,6 @@ import (
 	"oncecall/cmd/oncecall_sync/global/config"
 	"oncecall/cmd/oncecall_sync/global/log"
 	"oncecall/cmd/oncecall_sync/global/metric"
-	"oncecall/cmd/oncecall_sync/plan"
 	"oncecall/cmd/oncecall_sync/state"
 	"oncecall/connpool"
 	"oncecall/connpool/types"
@@ -47,7 +46,7 @@ func syncdResetDbList(s state.SharedState, fetcher syncd.DbFetcher) error {
 }
 
 func syncdResetScriptPlan(s state.SharedState, private *syncd.PrivateState, ks []string, scriptList map[string]generic.Pair[[16]byte, cfg.ScriptConfig]) {
-	private.PlanMap.Range(func(key string, _ syncd.PlanData) bool {
+	/**private.PlanMap.Range(func(key string, _ syncd.PlanData) bool {
 		if !slices.Contains(ks, key) {
 			private.PlanMap.Delete(key)
 		}
@@ -74,7 +73,7 @@ func syncdResetScriptPlan(s state.SharedState, private *syncd.PrivateState, ks [
 			Plan:  sPlan,
 			State: pState,
 		})
-	}
+	}*/
 }
 
 func syncdResetScript(s state.SharedState, private *syncd.PrivateState, fetcher syncd.DbFetcher) error {
@@ -89,7 +88,7 @@ func syncdResetScript(s state.SharedState, private *syncd.PrivateState, fetcher 
 }
 
 func syncdBackground(self types.ConnPool, shared state.SharedStateManageCtl, private *syncd.PrivateState) {
-	for {
+	/**for {
 		select {
 		case <-shared.GetContext().Done():
 			return
@@ -117,7 +116,7 @@ func syncdBackground(self types.ConnPool, shared state.SharedStateManageCtl, pri
 		})
 
 		utils.IntervalSleep(time.Second, time.Millisecond*10)
-	}
+	}*/
 }
 
 func SyncdEntry(ctx context.Context) {

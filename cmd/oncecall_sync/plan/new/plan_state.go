@@ -12,6 +12,6 @@ type PlanState struct {
 	isInitSelf  atomic.Bool
 	isInitOther atomic.Bool
 
-	planBuf    planParamBuffer
-	vmCacheMap *generic.SyncMap[string, any]
+	vmGlobalMap *generic.SyncMap[string, any]
+	paramMap *generic.SyncMap[int, [][]any]
 }

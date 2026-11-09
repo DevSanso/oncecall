@@ -6,49 +6,12 @@ import (
 
 type ConnConfig = types.ConnConfig
 
-type ScriptQuerySyncPlan struct {
+type ScriptQueryPlan struct {
 	Bind *struct {
-		Fix *struct {
-			//key: cols pos
-			Pos map[string]struct {
-				Dynamic *struct {
-					PlanIdx         int    `toml:"plan_idx"`
-					Col             string `toml:"col"`
-					StartSyncOffset int    `toml:"start_sync_offset"`
-				} `toml:"dynamic"`
-
-				Static *string `toml:"static"`
-			}
-		} `toml:"fix"`
-
-		PrevVm *struct {
+		Vm *struct {
 			Lang   string `toml:"lang"`
 			Script string `toml:"script"`
-		} `toml:"prev_vm"`
-
-		Prev bool `toml:"prev"`
-	} `toml:"bind"`
-
-	Tran  bool   `toml:"is_tran"`
-	Query string `toml:"query"`
-}
-
-type ScriptQueryReadPlan struct {
-	Bind *struct {
-		//key: cols pos
-		Fix map[string]struct {
-			Dynamic *struct {
-				PlanIdx int    `toml:"plan_idx"`
-				Col     string `toml:"col"`
-				RowIdx  int    `toml:"row"`
-			} `toml:"dynamic"`
-			Static *string `toml:"static"`
-		} `toml:"fix"`
-
-		PrevVm *struct {
-			Lang   string `toml:"lang"`
-			Script string `toml:"script"`
-		} `toml:"prev_vm"`
+		} `toml:"vm"`
 
 		Prev bool `toml:"prev"`
 	} `toml:"bind"`
@@ -89,10 +52,10 @@ type ScriptConfig struct {
 		VmLang *string `toml:"vm_lang"`
 
 		Read []struct {
-			ReadIdent string              `toml:"identifier"`
-			ReadPlan  ScriptQueryReadPlan `toml:"read_plan"`
+			ReadIdent string          `toml:"identifier"`
+			ReadPlan  ScriptQueryPlan `toml:"read_plan"`
 		} `toml:"read"`
-		Sync ScriptQuerySyncPlan `toml:"sync"`
+		Sync ScriptQueryPlan `toml:"sync"`
 	} `toml:"plan"`
 }
 

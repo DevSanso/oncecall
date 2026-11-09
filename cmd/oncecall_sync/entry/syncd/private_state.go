@@ -2,16 +2,14 @@ package syncd
 
 import (
 	"context"
-	"oncecall/cmd/oncecall_sync/plan"
+
 	"oncecall/extension/log"
 	"oncecall/extension/metric"
 	"oncecall/utils/generic"
 )
 
 type PlanData struct {
-	Hash  [16]byte
-	Plan  plan.Plan
-	State plan.PlanState
+	Hash [16]byte
 }
 type PrivateState struct {
 	PlanMap *generic.SyncMap[string, PlanData]

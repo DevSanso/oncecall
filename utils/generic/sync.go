@@ -226,6 +226,10 @@ func (m *SyncMap[K, V]) RawRead(dst map[K]V) {
 	m.sm.Range(fn)
 }
 
+func (m *SyncMap[K, V]) Clear() {
+	m.sm.Clear()
+}
+
 func (m *SyncMap[K, V]) RawWrite(src map[K]V) {
 	for k, v := range src {
 		m.sm.Store(k, v)

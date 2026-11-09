@@ -15,7 +15,7 @@ type luaVM struct {
 	raw  *lua.State
 	once sync.Once
 
-	input  [][]any
+	input  *generic.SyncMap[int, [][]any]
 	output [][]any
 
 	tempGPtrMap *generic.SyncMap[string, any]
@@ -111,8 +111,18 @@ func (*luaVM) pushLuaFromGo(l *lua.State, v any) error {
 
 func (w *luaVM) registerGetDataLuaFunc(name string) {
 	w.raw.PushGoFunction(func(l *lua.State) int {
-		data := w.input
 		isCastFailFlag := false
+
+		planIdx, exists := l.ToInteger(1)
+		if !exists {
+			lua.Errorf(l, "%s", errlist.ErrG.NewError(nil, "not setting param1"))
+			return 0
+		}
+		data,inputExists :=  w.input.Load(planIdx)
+		if !inputExists {
+			lua.Errorf(l, "%s", errlist.ErrG.NewError(nil, "plan data not exists %d", planIdx))
+			return 0
+		}
 
 		l.CreateTable(len(data), 0)
 
@@ -244,10 +254,14 @@ func (w *luaVM) registerCacheMapLuaUserData(userdataName string) {
 	w.raw.SetGlobal(userdataName)
 }
 
-func (w *luaVM) Do(cache *generic.SyncMap[string, any], script string, data [][]any) ([][]any, error) {
-	w.input = data
+
+var dummayluaVmInputMap = generic.NewGenericSyncMap[int, [][]any]()
+
+
+func (w *luaVM) Do(cache *generic.SyncMap[string, any], script string,  dataCache *generic.SyncMap[int, [][]any]) ([][]any, error) {
+	w.input = dataCache
 	if w.input == nil {
-		w.input = [][]any{}
+		w.input = dummayluaVmInputMap
 	}
 
 	w.tempGPtrMap = cache
