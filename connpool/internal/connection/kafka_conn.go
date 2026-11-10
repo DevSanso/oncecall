@@ -46,20 +46,20 @@ func (k *kafkaConn) RunExecute(ctx context.Context, arg *types.Args) error {
 	return nil
 }
 
-func (k *kafkaConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, err error) {
+func (k *kafkaConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, ty []types.ConnPoolColType, err error) {
 	var res struct {
 		Count int `json:"count"`
 	}
 	if err := json.Unmarshal([]byte(arg.Query), &res); err != nil {
-		return nil, nil, errlist.ErrG.NewError(err, "unmarshal query failed, %s", arg.Query)
+		return nil, nil, nil, errlist.ErrG.NewError(err, "unmarshal query failed, %s", arg.Query)
 	}
 	var temp int64
-	rows, name, temp, err = k.ReadData(ctx, k.topic, res.Count, k.consumerOffset)
+	rows, name, ty, temp, err = k.ReadData(ctx, k.topic, res.Count, k.consumerOffset)
 	if err != nil {
-		return nil, nil, errlist.ErrG.NewError(err, "read data failed (topic:%s, offset:%d)", k.topic, k.consumerOffset)
+		return nil, nil, nil, errlist.ErrG.NewError(err, "read data failed (topic:%s, offset:%d)", k.topic, k.consumerOffset)
 	}
 	k.consumerOffset = temp
-	return rows, name, nil
+	return rows, name, nil, nil
 }
 
 func (k *kafkaConn) Close() error {
@@ -121,7 +121,7 @@ func (k *kafkaConn) WriteData(topicName string, arg *types.Args) error {
 	return nil
 }
 
-func (k *kafkaConn) ReadData(ctx context.Context, topicName string, count int, offset int64) ([][]any, []string, int64, error) {
+func (k *kafkaConn) ReadData(ctx context.Context, topicName string, count int, offset int64) ([][]any, []string, []types.ConnPoolColType, int64, error) {
 	data := make([][]any, 5)
 
 	data[0] = make([]any, 0, count/10)
@@ -139,7 +139,7 @@ func (k *kafkaConn) ReadData(ctx context.Context, topicName string, count int, o
 
 	partitions, partErr := c.Partitions(topicName)
 	if partErr != nil {
-		return nil, nil, offset, errlist.ErrG.NewError(partErr, "get partition failed")
+		return nil, nil, nil, offset, errlist.ErrG.NewError(partErr, "get partition failed")
 	}
 
 	if offset < -1 {
@@ -151,7 +151,7 @@ func (k *kafkaConn) ReadData(ctx context.Context, topicName string, count int, o
 	for _, part := range partitions {
 		channel, chanErr := c.ConsumePartition(topicName, part, offset)
 		if chanErr != nil {
-			return nil, nil, offset, errlist.ErrG.NewError(chanErr, "get consume channel %d", part)
+			return nil, nil, nil, offset, errlist.ErrG.NewError(chanErr, "get consume channel %d", part)
 		}
 
 		defer channel.Close()
@@ -177,7 +177,7 @@ func (k *kafkaConn) ReadData(ctx context.Context, topicName string, count int, o
 		for _, ch := range errChannels {
 			select {
 			case errMsg := <-ch:
-				return nil, nil, offset, errlist.ErrG.NewError(errMsg.Err, "consume send error string, topic :%s", errMsg.Topic)
+				return nil, nil, nil, offset, errlist.ErrG.NewError(errMsg.Err, "consume send error string, topic :%s", errMsg.Topic)
 			default:
 			}
 		}
@@ -204,5 +204,11 @@ func (k *kafkaConn) ReadData(ctx context.Context, topicName string, count int, o
 		"partition",
 		"key",
 		"value",
+	}, []types.ConnPoolColType {
+		types.ConnPoolColTypeBigInt,
+		types.ConnPoolColTypeText,
+		types.ConnPoolColTypeInt,
+		types.ConnPoolColTypeBytes,
+		types.ConnPoolColTypeBytes,
 	}, currentOffset, nil
 }

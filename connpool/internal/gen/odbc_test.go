@@ -48,7 +48,7 @@ func TestOdbcConnectRunQuery(t *testing.T) {
 
 	rowName := []string{"num", "name", "num2"}
 
-	cData, rRow, rErr := conn.RunQuery(context.Background(), &types.Args{
+	cData, rRow,_, rErr := conn.RunQuery(context.Background(), &types.Args{
 		Query: `SELECT cast(? as int4) as num, ? as name, cast(? as numeric) as num2 union all SELECT cast(? as int4) as num, ? as name, cast(? as numeric) as num2`,
 		Args: [][]any{
 			{data[0][0], data[0][1], data[0][2], data[1][0], data[1][1], data[1][2]},
@@ -91,7 +91,7 @@ func TestOdbcConnectRunExecute(t *testing.T) {
 		t.Fatalf("%s", err.Error())
 	}
 
-	data, _, rErr := conn.RunQuery(context.Background(), &types.Args{
+	data, _, _, rErr := conn.RunQuery(context.Background(), &types.Args{
 		Query: `SELECT application_name 
 		FROM pg_stat_activity 
 		WHERE pid = pg_backend_pid()`,

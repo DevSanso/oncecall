@@ -28,7 +28,7 @@ func (s *sshConn) RunExecute(ctx context.Context, arg *types.Args) error {
 	return nil
 }
 
-func (s *sshConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, err error) {
+func (s *sshConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, ty []types.ConnPoolColType, err error) {
 	var b bytes.Buffer
 	var errB bytes.Buffer
 
@@ -44,15 +44,25 @@ func (s *sshConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, 
 
 	if err != nil {
 		if errB.Len() > 0 {
-			return nil, nil, errlist.ErrG.NewError(err, "cmd err:%s", errB.String())
+			return nil, nil, nil, errlist.ErrG.NewError(err, "cmd err:%s", errB.String())
 		}
-		return nil, nil, errlist.ErrG.NewError(err, "ssh err")
+		return nil, nil, nil, errlist.ErrG.NewError(err, "ssh err")
 	} else if errB.Len() > 0 {
-		return nil, nil, errlist.ErrG.NewError(nil, "cmd err:%s", errB.String())
+		return nil, nil, nil, errlist.ErrG.NewError(nil, "cmd err:%s", errB.String())
 	}
 
 	rows, name = s.shUtils.ParseResponse(b.String(), s.newlineChar, s.splitChar)
 	err = nil
+
+	if len(rows) <=0 {
+		return nil, nil, nil, errlist.ErrG.NewError(nil, "not exists")
+	}
+
+	ty = make([]types.ConnPoolColType, len(rows[0]))
+	for idx := range len(rows[0]) {
+		ty[idx] = types.ConnPoolColTypeText
+	}
+
 	return
 }
 

@@ -88,22 +88,22 @@ func (c *odbcConn) RunExecute(ctx context.Context, arg *types.Args) error {
 func (c *odbcConn) RunQuery(
 	ctx context.Context,
 	arg *types.Args,
-) ([][]any, []string, error) {
+) ([][]any, []string, []types.ConnPoolColType, error) {
 	if arg == nil {
-		return nil, nil, errlist.ErrG.NewError(nil, "ODBC query arguments are nil")
+		return nil, nil, nil, errlist.ErrG.NewError(nil, "ODBC query arguments are nil")
 	}
 	if strings.TrimSpace(arg.Query) == "" {
-		return nil, nil, errlist.ErrG.NewError(nil, "ODBC query is empty")
+		return nil, nil, nil, errlist.ErrG.NewError(nil, "ODBC query is empty")
 	}
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if c.closed || c.raw == nil {
-		return nil, nil, errlist.ErrG.NewError(nil, "ODBC connection is closed")
+		return nil, nil, nil, errlist.ErrG.NewError(nil, "ODBC connection is closed")
 	}
 	if err := ctx.Err(); err != nil {
-		return nil, nil, errlist.ErrG.NewError(err, "ODBC query canceled")
+		return nil, nil, nil, errlist.ErrG.NewError(err, "ODBC query canceled")
 	}
 
 	sets := arg.Args
@@ -111,23 +111,23 @@ func (c *odbcConn) RunQuery(
 		sets = [][]any{nil}
 	}
 	if len(sets) != 1 {
-		return nil, nil, errlist.ErrG.NewError(
+		return nil, nil, nil, errlist.ErrG.NewError(
 			nil,
 			"ODBC query expects one parameter set, got %d",
 			len(sets),
 		)
 	}
 
-	rows, names, err := c.raw.Query(arg.Query, sets[0])
+	rows, names, ty, err := c.raw.Query(arg.Query, sets[0])
 	if err != nil {
-		return nil, nil, errlist.ErrG.NewError(err, "ODBC query failed")
+		return nil, nil, nil, errlist.ErrG.NewError(err, "ODBC query failed")
 	}
 
 	if err := ctx.Err(); err != nil {
-		return nil, nil, errlist.ErrG.NewError(err, "ODBC query canceled after execution")
+		return nil, nil, nil, errlist.ErrG.NewError(err, "ODBC query canceled after execution")
 	}
 
-	return rows, names, nil
+	return rows, names, ty, nil
 }
 
 func (c *odbcConn) Close() error {

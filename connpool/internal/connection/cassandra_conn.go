@@ -66,7 +66,7 @@ func (c *cassandraConn) makeRowBuffer(cols []gocql.ColumnInfo) (data []any, err 
 	return
 }
 
-func (c *cassandraConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, err error) {
+func (c *cassandraConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, ty []types.ConnPoolColType, err error) {
 	sess := c.session
 
 	var dummy []any = nil
@@ -82,14 +82,29 @@ func (c *cassandraConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][
 	cols := iter.Columns()
 	var valuePtr []any = make([]any, len(cols))
 	name = make([]string, len(cols))
+	ty = make([]types.ConnPoolColType, len(cols))
 
 	for idx := range cols {
 		name[idx] = cols[idx].Name
+		switch cols[idx].TypeInfo.Type() {
+			case gocql.TypeVarchar, gocql.TypeText:
+				ty[idx] = types.ConnPoolColTypeText
+			case gocql.TypeFloat, gocql.TypeDouble:
+				ty[idx] =types.ConnPoolColTypeFloat64
+			case gocql.TypeBlob:
+				ty[idx] = types.ConnPoolColTypeBytes
+			case gocql.TypeBigInt:
+				ty[idx] = types.ConnPoolColTypeBigInt
+			case gocql.TypeInt, gocql.TypeSmallInt:
+				ty[idx] = types.ConnPoolColTypeInt
+			default:
+				return nil, nil, nil, errlist.ErrG.NewError(nil, "not support type:%v", cols[idx].TypeInfo.Type())
+		}
 	}
 
 	value, valueErr := c.makeRowBuffer(cols)
 	if valueErr != nil {
-		return nil, nil, errlist.ErrG.NewError(valueErr, "query cols get buffer failed : ")
+		return nil, nil, nil, errlist.ErrG.NewError(valueErr, "query cols get buffer failed : ")
 	}
 
 	for idx := range value {
@@ -102,7 +117,7 @@ func (c *cassandraConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][
 
 		value, valueErr = c.makeRowBuffer(cols)
 		if valueErr != nil {
-			return nil, nil, errlist.ErrG.NewError(valueErr, "query cols get buffer failed ")
+			return nil, nil, nil, errlist.ErrG.NewError(valueErr, "query cols get buffer failed ")
 		}
 
 		for idx := range value {
@@ -110,7 +125,7 @@ func (c *cassandraConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][
 		}
 	}
 
-	return retArr, name, nil
+	return retArr, name, nil, nil
 }
 
 func (c *cassandraConn) Close() error {

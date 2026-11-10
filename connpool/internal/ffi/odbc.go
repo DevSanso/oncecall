@@ -1,4 +1,3 @@
-
 package ffi
 
 /*
@@ -18,7 +17,7 @@ package ffi
 #include <stdlib.h>
 #include <string.h>
 
-static SQLRETURN go_sql_driver_connect(
+static SQLRETURN oncecall_go_odbc_sql_driver_connect(
     SQLHDBC dbc, const char *connstr, SQLSMALLINT len
 ) {
     return SQLDriverConnect(
@@ -27,7 +26,7 @@ static SQLRETURN go_sql_driver_connect(
     );
 }
 
-static SQLRETURN go_sql_exec(
+static SQLRETURN oncecall_go_odbc_sql_exec(
     SQLHSTMT stmt, const char *query, SQLINTEGER len
 ) {
     return SQLExecDirect(stmt, (SQLCHAR *)query, len);
@@ -39,6 +38,7 @@ import (
 	"runtime"
 	"unsafe"
 
+	"oncecall/connpool/types"
 	"oncecall/errlist"
 )
 
@@ -119,7 +119,7 @@ func OpenODBC(connectionString string) (*ODBCFfi, error) {
 	cs := C.CString(connectionString)
 	defer C.free(unsafe.Pointer(cs))
 
-	rc = C.go_sql_driver_connect(
+	rc = C.oncecall_go_odbc_sql_driver_connect(
 		o.dbc, cs, C.SQLSMALLINT(len(connectionString)),
 	)
 	runtime.KeepAlive(connectionString)
@@ -310,7 +310,7 @@ func (o *ODBCFfi) Execute(query string, params []any) error {
 	defer C.free(unsafe.Pointer(cs))
 
 	if len(params) == 0 {
-		rc := C.go_sql_exec(stmt, cs, C.SQLINTEGER(len(query)))
+		rc := C.oncecall_go_odbc_sql_exec(stmt, cs, C.SQLINTEGER(len(query)))
 		if !o.ok(rc) {
 			return o.diag(C.SQL_HANDLE_STMT, C.SQLHANDLE(stmt), "SQLExecDirect")
 		}
@@ -359,10 +359,10 @@ func (o *ODBCFfi) newStatement() (C.SQLHSTMT, error) {
 func (o *ODBCFfi) Query(
 	query string,
 	params []any,
-) ([][]any, []string, error) {
+) ([][]any, []string, []types.ConnPoolColType, error) {
 	stmt, err := o.newStatement()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	defer C.SQLFreeHandle(C.SQL_HANDLE_STMT, C.SQLHANDLE(stmt))
 
@@ -377,57 +377,61 @@ func (o *ODBCFfi) Query(
 	}()
 
 	if len(params) == 0 {
-		rc := C.go_sql_exec(stmt, cs, C.SQLINTEGER(len(query)))
+		rc := C.oncecall_go_odbc_sql_exec(stmt, cs, C.SQLINTEGER(len(query)))
 		if !o.ok(rc) {
-			return nil, nil, o.diag(C.SQL_HANDLE_STMT, C.SQLHANDLE(stmt), "SQLExecDirect")
+			return nil, nil, nil, o.diag(C.SQL_HANDLE_STMT, C.SQLHANDLE(stmt), "SQLExecDirect")
 		}
 	} else {
 		rc := C.SQLPrepare(stmt, (*C.SQLCHAR)(unsafe.Pointer(cs)), C.SQLINTEGER(len(query)))
 		if !o.ok(rc) {
-			return nil, nil, o.diag(C.SQL_HANDLE_STMT, C.SQLHANDLE(stmt), "SQLPrepare")
+			return nil, nil, nil, o.diag(C.SQL_HANDLE_STMT, C.SQLHANDLE(stmt), "SQLPrepare")
 		}
 
 		for i, v := range params {
 			b, err := o.bind(stmt, i+1, v)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 			bound = append(bound, b)
 		}
 
 		rc = C.SQLExecute(stmt)
 		if !o.ok(rc) {
-			return nil, nil, o.diag(C.SQL_HANDLE_STMT, C.SQLHANDLE(stmt), "SQLExecute")
+			return nil, nil, nil, o.diag(C.SQL_HANDLE_STMT, C.SQLHANDLE(stmt), "SQLExecute")
 		}
 	}
 
 	names, err := o.columnNames(stmt)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	rows := make([][]any, 0)
+	ty := make([]types.ConnPoolColType, len(names))
+
 	for {
 		rc := C.SQLFetch(stmt)
 		if rc == C.SQL_NO_DATA {
 			break
 		}
 		if !o.ok(rc) {
-			return nil, nil, o.diag(C.SQL_HANDLE_STMT, C.SQLHANDLE(stmt), "SQLFetch")
+			return nil, nil, nil, o.diag(C.SQL_HANDLE_STMT, C.SQLHANDLE(stmt), "SQLFetch")
 		}
 
 		row := make([]any, len(names))
+		
 		for i := range names {
-			v, err := o.readColumn(stmt, i+1)
+			v, t, err := o.readColumn(stmt, i+1)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 			row[i] = v
+			ty[i] = t
 		}
 		rows = append(rows, row)
 	}
 
-	return rows, names, nil
+	return rows, names, ty, nil
 }
 
 func (o *ODBCFfi) columnNames(stmt C.SQLHSTMT) ([]string, error) {
@@ -462,7 +466,7 @@ func (o *ODBCFfi) columnNames(stmt C.SQLHSTMT) ([]string, error) {
 	return names, nil
 }
 
-func (o *ODBCFfi) readColumn(stmt C.SQLHSTMT, col int) (any, error) {
+func (o *ODBCFfi) readColumn(stmt C.SQLHSTMT, col int) (any, types.ConnPoolColType, error) {
 	var name [2]C.SQLCHAR
 	var n C.SQLSMALLINT
 	var typ C.SQLSMALLINT
@@ -475,7 +479,7 @@ func (o *ODBCFfi) readColumn(stmt C.SQLHSTMT, col int) (any, error) {
 		&n, &typ, &size, &scale, &nullable,
 	)
 	if !o.ok(rc) {
-		return nil, o.diag(C.SQL_HANDLE_STMT, C.SQLHANDLE(stmt), "SQLDescribeCol")
+		return nil, types.ConnPoolColTypeNotSet, o.diag(C.SQL_HANDLE_STMT, C.SQLHANDLE(stmt), "SQLDescribeCol")
 	}
 
 	switch typ {
@@ -487,12 +491,12 @@ func (o *ODBCFfi) readColumn(stmt C.SQLHSTMT, col int) (any, error) {
 			C.SQLPOINTER(unsafe.Pointer(&v)), C.SQLLEN(C.sizeof_int), &ind,
 		)
 		if !o.ok(rc) {
-			return nil, o.diag(C.SQL_HANDLE_STMT, C.SQLHANDLE(stmt), "SQLGetData")
+			return nil, types.ConnPoolColTypeNotSet, o.diag(C.SQL_HANDLE_STMT, C.SQLHANDLE(stmt), "SQLGetData")
 		}
 		if ind == C.SQL_NULL_DATA {
-			return nil, nil
+			return nil, types.ConnPoolColTypeNotSet, nil
 		}
-		return int(v), nil
+		return int(v), types.ConnPoolColTypeInt, nil
 
 	case C.SQL_BIGINT:
 		var v C.longlong
@@ -502,12 +506,12 @@ func (o *ODBCFfi) readColumn(stmt C.SQLHSTMT, col int) (any, error) {
 			C.SQLPOINTER(unsafe.Pointer(&v)), C.SQLLEN(C.sizeof_longlong), &ind,
 		)
 		if !o.ok(rc) {
-			return nil, o.diag(C.SQL_HANDLE_STMT, C.SQLHANDLE(stmt), "SQLGetData")
+			return nil, types.ConnPoolColTypeNotSet, o.diag(C.SQL_HANDLE_STMT, C.SQLHANDLE(stmt), "SQLGetData")
 		}
 		if ind == C.SQL_NULL_DATA {
-			return nil, nil
+			return nil, types.ConnPoolColTypeNotSet, nil
 		}
-		return int64(v), nil
+		return int64(v), types.ConnPoolColTypeBigInt, nil
 
 	case C.SQL_REAL:
 		var v C.float
@@ -517,12 +521,12 @@ func (o *ODBCFfi) readColumn(stmt C.SQLHSTMT, col int) (any, error) {
 			C.SQLPOINTER(unsafe.Pointer(&v)), C.SQLLEN(C.sizeof_float), &ind,
 		)
 		if !o.ok(rc) {
-			return nil, o.diag(C.SQL_HANDLE_STMT, C.SQLHANDLE(stmt), "SQLGetData")
+			return nil, types.ConnPoolColTypeNotSet, o.diag(C.SQL_HANDLE_STMT, C.SQLHANDLE(stmt), "SQLGetData")
 		}
 		if ind == C.SQL_NULL_DATA {
-			return nil, nil
+			return nil, types.ConnPoolColTypeNotSet, nil
 		}
-		return float32(v), nil
+		return float32(v), types.ConnPoolColTypeFloat32, nil
 
 	case C.SQL_FLOAT, C.SQL_DOUBLE, C.SQL_DECIMAL, C.SQL_NUMERIC:
 		var v C.double
@@ -532,12 +536,12 @@ func (o *ODBCFfi) readColumn(stmt C.SQLHSTMT, col int) (any, error) {
 			C.SQLPOINTER(unsafe.Pointer(&v)), C.SQLLEN(C.sizeof_double), &ind,
 		)
 		if !o.ok(rc) {
-			return nil, o.diag(C.SQL_HANDLE_STMT, C.SQLHANDLE(stmt), "SQLGetData")
+			return nil, types.ConnPoolColTypeNotSet, o.diag(C.SQL_HANDLE_STMT, C.SQLHANDLE(stmt), "SQLGetData")
 		}
 		if ind == C.SQL_NULL_DATA {
-			return nil, nil
+			return nil, types.ConnPoolColTypeNotSet, nil
 		}
-		return float64(v), nil
+		return float64(v), types.ConnPoolColTypeFloat64, nil
 	}
 
 	const chunk = 4096
@@ -546,7 +550,7 @@ func (o *ODBCFfi) readColumn(stmt C.SQLHSTMT, col int) (any, error) {
 	for {
 		buf := C.malloc(chunk)
 		if buf == nil {
-			return nil, o.newError(nil, "allocate result buffer failed")
+			return nil, types.ConnPoolColTypeNotSet, o.newError(nil, "allocate result buffer failed")
 		}
 		C.memset(buf, 0, chunk)
 
@@ -562,11 +566,11 @@ func (o *ODBCFfi) readColumn(stmt C.SQLHSTMT, col int) (any, error) {
 		}
 		if ind == C.SQL_NULL_DATA {
 			C.free(buf)
-			return nil, nil
+			return nil, types.ConnPoolColTypeNotSet, nil
 		}
 		if !o.ok(rc) {
 			C.free(buf)
-			return nil, o.diag(C.SQL_HANDLE_STMT, C.SQLHANDLE(stmt), "SQLGetData")
+			return nil, types.ConnPoolColTypeNotSet, o.diag(C.SQL_HANDLE_STMT, C.SQLHANDLE(stmt), "SQLGetData")
 		}
 
 		n := int(C.strnlen((*C.char)(buf), chunk-1))
@@ -580,5 +584,5 @@ func (o *ODBCFfi) readColumn(stmt C.SQLHSTMT, col int) (any, error) {
 		}
 	}
 
-	return string(out), nil
+	return string(out), types.ConnPoolColTypeText, nil
 }

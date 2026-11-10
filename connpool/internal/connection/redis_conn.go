@@ -66,12 +66,12 @@ func (r *redisConn) RunExecute(ctx context.Context, arg *types.Args) error {
 	return nil
 }
 
-func (r *redisConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, err error) {
+func (r *redisConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, ty []types.ConnPoolColType, err error) {
 	trimQuery := strings.ReplaceAll(arg.Query, "\n", "")
 	trimQuery = strings.ReplaceAll(trimQuery, "\r", "")
 
 	if arg.IsTransaction {
-		return nil, nil, errlist.ErrG.NewError(nil, "ERROR: RunExecute exec(tran multi) not support")
+		return nil, nil, nil, errlist.ErrG.NewError(nil, "ERROR: RunExecute exec(tran multi) not support")
 	}
 
 	var doRet *redis.Cmd
@@ -87,12 +87,12 @@ func (r *redisConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any
 		doRet = r.conn.Do(ctx, realP...)
 	}
 	if (doRet != nil) && doRet.Err() != nil {
-		return nil, nil, errlist.ErrG.NewError(doRet.Err(), "query:[%s]", trimQuery)
+		return nil, nil, nil, errlist.ErrG.NewError(doRet.Err(), "query:[%s]", trimQuery)
 	}
 
 	var buf [][]any
-	if buf, err = r.parseOutputAny(doRet.Val()); err != nil {
-		return nil, nil, errlist.ErrG.NewError(err, "query:[%s]", trimQuery)
+	if buf, ty, err = r.parseOutputAny(doRet.Val()); err != nil {
+		return nil, nil, nil, errlist.ErrG.NewError(err, "query:[%s]", trimQuery)
 	}
 
 	name = make([]string, len(buf))
@@ -101,63 +101,43 @@ func (r *redisConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any
 		name[idx] = strconv.Itoa(idx + 1)
 	}
 
-	return buf, name, nil
+	return buf, name, ty, nil
 }
 
-func (r *redisConn) parseOutputAny(val any) ([][]any, error) {
+func (r *redisConn) parseOutputAny(val any) ([][]any, []types.ConnPoolColType, error) {
 	var ret [][]any = make([][]any, 1)
+	var ty []types.ConnPoolColType = nil
 
 	switch v := val.(type) {
 	case []any:
 		ret[0] = make([]any, len(v))
+		ty = make([]types.ConnPoolColType, len(v))
+
 		for idx, data := range v {
 			ret[0][idx] = data
+			ty[idx] = types.ConnPoolColTypeText
 		}
-	case int64, float64, string, bool:
-		ret[0] = []any{v}
-	default:
-		return nil, errlist.ErrG.NewError(nil, "Parse not support %s", reflect.ValueOf(val).Type().Name())
-	}
-
-	return ret, nil
-}
-
-func (r *redisConn) parseOutputStr(val interface{}, idx int, m [][]string) error {
-	var ret [][]string = m
-	var current = idx
-
-	if current > len(ret) {
-		for start := len(ret); start <= current; start++ {
-			ret = append(ret, make([]string, 0, 10))
-		}
-	}
-
-	switch val.(type) {
 	case int64:
-		temp := append(ret[current], strconv.FormatInt(val.(int64), 10))
-		ret[current] = temp
-	case float64:
-		temp := append(ret[current], strconv.FormatFloat(val.(float64), 'f', 2, 64))
-		ret[current] = temp
-	case string:
-		temp := append(ret[current], val.(string))
-		ret[current] = temp
-	case []interface{}:
-		var err error
-		for _, v := range val.([]interface{}) {
-			current += 1
-			if err = r.parseOutputStr(v, current, m); err != nil {
-				break
-			}
-		}
-		if err != nil {
-			return err
-		}
+		ret[0] = []any{v}
+		ty = make([]types.ConnPoolColType, 1)
+		ty[0] = types.ConnPoolColTypeBigInt
+	case  float64:
+		ret[0] = []any{v}
+		ty = make([]types.ConnPoolColType, 1)
+		ty[0] = types.ConnPoolColTypeFloat64
+	case  string:
+		ret[0] = []any{v}
+		ty = make([]types.ConnPoolColType, 1)
+		ty[0] = types.ConnPoolColTypeText
+	case  bool:
+		ret[0] = []any{v}
+		ty = make([]types.ConnPoolColType, 1)
+		ty[0] = types.ConnPoolColTypeBool
 	default:
-		return errlist.ErrG.NewError(nil, "parseOutputStr not support %s", reflect.ValueOf(val).Type().Name())
+		return nil, nil, errlist.ErrG.NewError(nil, "Parse not support %s", reflect.ValueOf(val).Type().Name())
 	}
 
-	return nil
+	return ret, ty, nil
 }
 
 func (r *redisConn) Close() error {

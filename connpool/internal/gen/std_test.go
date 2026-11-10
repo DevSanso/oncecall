@@ -114,7 +114,7 @@ func TestStdSqlConnSelect(t *testing.T) {
 		t.Fatalf("INSERT failed: %v", err)
 	}
 
-	rows, names, err := conn.RunQuery(ctx, &types.Args{
+	rows, names,_, err := conn.RunQuery(ctx, &types.Args{
 		Query: fmt.Sprintf(`
 			SELECT id, name, score
 			FROM %s
@@ -193,7 +193,7 @@ func TestStdSqlConnUpdate(t *testing.T) {
 		t.Fatalf("UPDATE failed: %v", err)
 	}
 
-	rows, _, err := conn.RunQuery(ctx, &types.Args{
+	rows, _, _, err := conn.RunQuery(ctx, &types.Args{
 		Query: fmt.Sprintf(`
 			SELECT name, score
 			FROM %s
@@ -249,7 +249,7 @@ func TestStdSqlConnDelete(t *testing.T) {
 		t.Fatalf("DELETE failed: %v", err)
 	}
 
-	rows, _, err := conn.RunQuery(ctx, &types.Args{
+	rows, _,_, err := conn.RunQuery(ctx, &types.Args{
 		Query: fmt.Sprintf(`
 			SELECT id FROM %s
 		`, testTable),

@@ -45,7 +45,7 @@ func TestCassandraQuery(t *testing.T) {
 	data := []any{1, "name", 0.123}
 	name := []string{"n1", "n2", "n3"}
 
-	rdata, rname, rerr := conn.RunQuery(context.Background(), &types.Args{
+	rdata, rname, _, rerr := conn.RunQuery(context.Background(), &types.Args{
 		Query: "select (int)? as n1, (varchar)? as n2, (double)? as n3 from system.local",
 		Args: [][]any{
 			data,

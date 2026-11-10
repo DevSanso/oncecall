@@ -14,4 +14,5 @@ const (
 	LOCAL     POOLType = "local"
 	KAFKA     POOLType = "kafka"
 	ODBC      POOLType = "odbc"
+	DUCKDB    POOLType = "duckdb"
 )

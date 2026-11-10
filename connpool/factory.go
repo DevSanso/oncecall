@@ -14,6 +14,7 @@ import (
 
 type retWrapper struct {
 	rows    [][]any
+	ty      []types.ConnPoolColType
 	colName []string
 }
 type connPool struct {
@@ -100,25 +101,25 @@ func (c *connPool) RunExecute(ctx context.Context, arg *types.Args) error {
 	return err
 }
 
-func (c *connPool) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, err error) {
+func (c *connPool) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, ty []types.ConnPoolColType, err error) {
 	c.lExtension.Debug("Try RunQuery (ident:%s, query:%s)", c.ident, arg.Query)
 	now := time.Now()
 	ret, err := c.pExtension.Use(func(data types.Conn) (retWrapper, error) {
-		err := data.RunExecute(ctx, arg)
+		rows, name, ty, err := data.RunQuery(ctx, arg)
 		if err != nil {
 			return retWrapper{}, errlist.ErrG.NewError(err, "RunExecute Failed : %s", c.ident)
 		}
-		return retWrapper{}, nil
+		return retWrapper{rows, ty, name}, nil
 	})
 
 	if err != nil {
-		return nil, nil, err
+		return nil, nil,nil, err
 	}
 	epel := time.Now().Sub(now).Seconds()
 	c.lExtension.Debug("RunQuery Success: (ident:%s, epel:%f, rows:%d, cols:%d, query:%s, isTran:%v)",
 		c.ident, epel, len(ret.rows), len(ret.rows), arg.Query, arg.IsTransaction)
 
-	return ret.rows, ret.colName, nil
+	return ret.rows, ret.colName, ret.ty, nil
 }
 
 func (c *connPool) GetConfig() types.ConnConfig {

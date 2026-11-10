@@ -57,7 +57,7 @@ func TestRedisExecute(t *testing.T) {
 		t.Fatalf("%s", eerr.Error())
 	}
 
-	rdata, rname, rerr := conn.RunQuery(context.Background(), &types.Args{
+	rdata, rname,_, rerr := conn.RunQuery(context.Background(), &types.Args{
 		Query:         "get ax",
 		Args:          nil,
 		IsTransaction: false,

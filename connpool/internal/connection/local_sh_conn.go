@@ -106,9 +106,9 @@ func (l *localShConn) RunExecute(ctx context.Context, arg *types.Args) error {
 	return nil
 }
 
-func (l *localShConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, err error) {
+func (l *localShConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, ty []types.ConnPoolColType, err error) {
 	if l.isCloseFlag.Load() {
-		return nil, nil, errlist.ErrG.NewError(prefix.ClosedError, "exec closed : %s", l.interactive.proc.Path)
+		return nil, nil, nil, errlist.ErrG.NewError(prefix.ClosedError, "exec closed : %s", l.interactive.proc.Path)
 	}
 
 	l.shMutex.Lock()
@@ -118,19 +118,39 @@ func (l *localShConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]a
 		_, writeErr := l.interactive.stdin.Write(l.connUtils.MakeParam(l.inputNextLineChar,
 			l.inputDivisionChar, l.interactive.inputEndChar, arg))
 		if writeErr != nil {
-			return nil, nil, errlist.ErrG.NewError(writeErr, "process write error, %s", l.interactive.proc.Path)
+			return nil, nil, nil, errlist.ErrG.NewError(writeErr, "process write error, %s", l.interactive.proc.Path)
 		}
 		rows, name, err = l.connUtils.ParseResponseFromReader(l.interactive.stdout, l.newlineChar, l.splitChar, l.interactive.outputEndChar)
 		if err != nil {
 			err = errlist.ErrG.NewError(err, "parse failed response %s", l.interactive.proc.Path)
 		}
+
+		if len(rows) <=0 {
+			return nil, nil, nil, errlist.ErrG.NewError(nil, "not exists")
+		}
+
+		ty = make([]types.ConnPoolColType, len(rows[0]))
+		for idx := range len(rows[0]) {
+			ty[idx] = types.ConnPoolColTypeText
+		}
+
 	} else {
 		cmd := exec.Command(l.nonInteractive.execPath, l.nonInteractive.args...)
 		stdoutData, stdoutErr := cmd.Output()
 		if stdoutErr != nil {
-			return nil, nil, errlist.ErrG.NewError(stdoutErr, "non interactive exec failed : %s", l.nonInteractive.execPath)
+			return nil, nil, nil, errlist.ErrG.NewError(stdoutErr, "non interactive exec failed : %s", l.nonInteractive.execPath)
 		}
+
 		rows, name = l.connUtils.ParseResponse(string(stdoutData), l.newlineChar, l.splitChar)
+
+		if len(rows) <=0 {
+			return nil, nil, nil, errlist.ErrG.NewError(nil, "not exists")
+		}
+
+		ty = make([]types.ConnPoolColType, len(rows[0]))
+		for idx := range len(rows[0]) {
+			ty[idx] = types.ConnPoolColTypeText
+		}
 		err = nil
 	}
 	return

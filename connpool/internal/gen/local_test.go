@@ -146,7 +146,7 @@ func TestLocalInteractiveHello(t *testing.T) {
 	}
 	defer conn.Close()
 
-	rows, names, err := conn.RunQuery(context.Background(), &types.Args{
+	rows, names, _, err := conn.RunQuery(context.Background(), &types.Args{
 		Args: [][]any{{"hello"}},
 	})
 	if err != nil {
@@ -168,7 +168,7 @@ func TestLocalInteractiveHello(t *testing.T) {
 		t.Errorf("rows mismatch: got %v, want %v", rows, expectedRows)
 	}
 
-	rows1, names1, err := conn.RunQuery(context.Background(), &types.Args{
+	rows1, names1,_, err := conn.RunQuery(context.Background(), &types.Args{
 		Args: [][]any{{"hello"}},
 	})
 

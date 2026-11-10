@@ -23,15 +23,29 @@ type ConnConfig struct {
 	OptionMap map[string]any `toml:"option"`
 }
 
+
+type ConnPoolColType int
+
+const (
+	ConnPoolColTypeNotSet = 0
+	ConnPoolColTypeInt ConnPoolColType = iota + 100
+	ConnPoolColTypeBigInt
+	ConnPoolColTypeText
+	ConnPoolColTypeFloat64
+	ConnPoolColTypeFloat32
+	ConnPoolColTypeBytes
+	ConnPoolColTypeBool
+)
+
 type Conn interface {
 	RunExecute(ctx context.Context, arg *Args) error
-	RunQuery(ctx context.Context, arg *Args) (rows [][]any, name []string, err error)
+	RunQuery(ctx context.Context, arg *Args) (rows [][]any, name []string, ty []ConnPoolColType,  err error)
 	io.Closer
 }
 
 type ConnPool interface {
 	RunExecute(ctx context.Context, arg *Args) error
-	RunQuery(ctx context.Context, arg *Args) (rows [][]any, name []string, err error)
+	RunQuery(ctx context.Context, arg *Args) (rows [][]any, name []string, ty []ConnPoolColType, err error)
 	GetConfig() ConnConfig
 }
 

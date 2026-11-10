@@ -20,7 +20,7 @@ func NewDbFetcher() DbFetcher {
 }
 
 func (i implDbFetcher) DBListIdent(ctx context.Context) ([]string, error) {
-	data, _, err := manage.ManageP.RunQuery(ctx, &types.Args{
+	data, _, _, err := manage.ManageP.RunQuery(ctx, &types.Args{
 		Query:         config.Config.Cmd.Db.Query.Manage.DbSyncList,
 		Args:          nil,
 		IsTransaction: false,

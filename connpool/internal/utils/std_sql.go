@@ -29,6 +29,9 @@ func (StdSqlUtils) GetConnUrlAndDriver(c *types.ConnConfig) (driver string, url 
 	case define.SAPHANA:
 		driver = "hdb"
 		url = fmt.Sprintf("hdb://%s:%s@%s", c.Id, c.Password, c.Server)
+	case define.DUCKDB:
+		driver = "duckdb"
+		url = c.Name
 	default:
 		e = errlist.ErrG.NewError(prefix.NotMatchingError, "not supported driver %s", c.DBType)
 	}

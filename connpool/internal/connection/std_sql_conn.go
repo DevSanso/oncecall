@@ -62,6 +62,7 @@ func (*stdSqlConn) isTypeDouble(t string) bool {
 		"FLOAT",
 		"FLOAT4",
 		"FLOAT8",
+		"NUMERIC",
 	}
 
 	return slices.Index(li, strings.ToUpper(t)) != -1
@@ -131,11 +132,11 @@ func (s *stdSqlConn) RunExecute(ctx context.Context, arg *types.Args) error {
 	return nil
 }
 
-func (s *stdSqlConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, err error) {
+func (s *stdSqlConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any, name []string, ty []types.ConnPoolColType, err error) {
 	conn := s.conn
 
 	if arg.IsTransaction {
-		return nil, nil, errlist.ErrG.NewError(nil, "exec sql transcation not support")
+		return nil, nil, nil, errlist.ErrG.NewError(nil, "exec sql transcation not support")
 	}
 
 	var r *sql.Rows = nil
@@ -144,25 +145,43 @@ func (s *stdSqlConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]an
 		var retErr error
 		r, retErr = conn.QueryContext(ctx, arg.Query, param...)
 		if retErr != nil {
-			return nil, nil, errlist.ErrG.NewError(retErr, "exec sql query failed")
+			return nil, nil, nil, errlist.ErrG.NewError(retErr, "exec sql query failed")
 		}
 	} else {
 		var retErr error
 		r, retErr = conn.QueryContext(ctx, arg.Query)
 
 		if retErr != nil {
-			return nil, nil, errlist.ErrG.NewError(retErr, "exec sql(no args) query failed")
+			return nil, nil, nil, errlist.ErrG.NewError(retErr, "exec sql(no args) query failed")
 		}
 	}
 	defer r.Close()
 
 	cType, colErr := r.ColumnTypes()
 	if colErr != nil {
-		return nil, nil, errlist.ErrG.NewError(colErr, "can't get column type")
+		return nil, nil, nil, errlist.ErrG.NewError(colErr, "can't get column type")
 	}
 
 	ret := make([][]any, 0, 5)
 	isFrist := false
+	tyBuf := make([]types.ConnPoolColType, len(cType))
+
+	for cIdx := range cType {
+		dType := cType[cIdx].DatabaseTypeName()
+		if s.isTypeDouble(dType) {
+			tyBuf[cIdx] = types.ConnPoolColTypeFloat64
+		} else if s.isTypeSInt(dType) {
+			tyBuf[cIdx] = types.ConnPoolColTypeInt
+		} else if s.isTypeBigInt(dType) {
+			tyBuf[cIdx] = types.ConnPoolColTypeBigInt
+		} else if s.isTypeText(dType) {
+			tyBuf[cIdx] = types.ConnPoolColTypeText
+		} else if s.isTypeBytes(dType) {
+			tyBuf[cIdx] = types.ConnPoolColTypeBytes
+		} else {
+			return nil, nil, nil, errlist.ErrG.NewError(nil, "not support type,type:%s", dType)
+		}
+	}
 
 	for r.Next() {
 		rowD := make([]any, len(cType))
@@ -170,20 +189,20 @@ func (s *stdSqlConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]an
 			name = make([]string, len(cType))
 		}
 
-		for idx := range len(cType) {
-			dType := cType[idx].DatabaseTypeName()
-			if s.isTypeDouble(dType) {
+		for idx := range len(tyBuf) {
+
+			if tyBuf[idx] == types.ConnPoolColTypeFloat64 {
 				rowD[idx] = 0.0
-			} else if s.isTypeSInt(dType) {
+			} else if tyBuf[idx] == types.ConnPoolColTypeInt {
 				rowD[idx] = int(0)
-			} else if s.isTypeBigInt(dType) {
+			} else if tyBuf[idx] == types.ConnPoolColTypeBigInt {
 				rowD[idx] = int64(0)
-			} else if s.isTypeText(dType) {
+			} else if tyBuf[idx] == types.ConnPoolColTypeText {
 				rowD[idx] = ""
-			} else if s.isTypeBytes(dType) {
+			} else if tyBuf[idx] == types.ConnPoolColTypeBytes {
 				rowD[idx] = sql.RawBytes{}
 			} else {
-				return nil, nil, errlist.ErrG.NewError(nil, "not support type,type:%s", dType)
+				return nil, nil, nil, errlist.ErrG.NewError(nil, "not support type,type:%s", tyBuf[idx])
 			}
 
 			if !isFrist {
@@ -201,12 +220,12 @@ func (s *stdSqlConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]an
 			for idx := range retP {
 				retP[idx] = 0
 			}
-			return nil, nil, errlist.ErrG.NewError(scanErr, "exec sql scan failed,")
+			return nil, nil, nil, errlist.ErrG.NewError(scanErr, "exec sql scan failed,")
 		}
 
 		ret = append(ret, rowD)
 	}
-	return ret, name, nil
+	return ret, name, tyBuf, nil
 }
 
 func (s *stdSqlConn) Close() error {

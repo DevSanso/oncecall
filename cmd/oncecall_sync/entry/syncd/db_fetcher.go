@@ -69,7 +69,7 @@ func (i implDbFetcher) parsingConnInfo(data [][]any, idx int, outputIdent *strin
 
 func (i implDbFetcher) dbOption(ctx context.Context, ident string) (map[string]any, error) {
 
-	data, _, err := manage.ManageP.RunQuery(ctx, &types.Args{
+	data, _, _, err := manage.ManageP.RunQuery(ctx, &types.Args{
 		Query:         config.Config.Cmd.Db.Query.Sync.DbList,
 		Args:          [][]any{{ident}},
 		IsTransaction: false,
@@ -99,7 +99,7 @@ func (i implDbFetcher) dbOption(ctx context.Context, ident string) (map[string]a
 func (i implDbFetcher) Self(ctx context.Context) (cfg.ConnConfig, error) {
 	var ret cfg.ConnConfig
 
-	data, _, err := manage.ManageP.RunQuery(ctx, &types.Args{
+	data, _, _, err := manage.ManageP.RunQuery(ctx, &types.Args{
 		Query:         config.Config.Cmd.Db.Query.Sync.DbList,
 		Args:          [][]any{{config.SyncIdent}},
 		IsTransaction: false,
@@ -133,7 +133,7 @@ func (i implDbFetcher) Self(ctx context.Context) (cfg.ConnConfig, error) {
 	return ret, nil
 }
 func (i implDbFetcher) DBList(ctx context.Context) (map[string]cfg.ConnConfig, error) {
-	data, _, err := manage.ManageP.RunQuery(ctx, &types.Args{
+	data, _, _, err := manage.ManageP.RunQuery(ctx, &types.Args{
 		Query:         config.Config.Cmd.Db.Query.Sync.DbList,
 		Args:          nil,
 		IsTransaction: false,
@@ -171,7 +171,7 @@ func (i implDbFetcher) DBList(ctx context.Context) (map[string]cfg.ConnConfig, e
 }
 
 func (i implDbFetcher) Script(ctx context.Context) (map[string]generic.Pair[[16]byte, cfg.ScriptConfig], error) {
-	data, _, err := manage.ManageP.RunQuery(ctx, &types.Args{
+	data, _, _, err := manage.ManageP.RunQuery(ctx, &types.Args{
 		Query:         config.Config.Cmd.Db.Query.Sync.Script,
 		Args:          [][]any{{config.SyncIdent}},
 		IsTransaction: false,

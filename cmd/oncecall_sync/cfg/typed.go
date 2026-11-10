@@ -14,6 +14,12 @@ type ScriptQueryPlan struct {
 		} `toml:"vm"`
 
 		Prev bool `toml:"prev"`
+
+		SQL *struct {
+			Query string `toml:"query"`
+			IsTransaction bool `toml:"is_tran"`
+		} `toml:"sql"`
+
 	} `toml:"bind"`
 
 	Tran  bool   `toml:"is_tran"`
