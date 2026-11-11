@@ -4,7 +4,7 @@ import (
 	"context"
 	"oncecall/connpool/internal/connection"
 	"oncecall/connpool/types"
-	"oncecall/errlist"
+	"oncecall/errset"
 	"oncecall/extension/log"
 	"strconv"
 	"strings"
@@ -21,12 +21,12 @@ func NewCassandraGenerator(info types.ConnConfig, lExtension log.LoggerLogExtens
 	hosts := strings.Split(info.Server, ",")
 	port := strings.Split(info.Server, ":")
 	if len(hosts) <= 0 || len(port) < 2 {
-		return nil, errlist.ErrG.NewError(nil, "address check : %s", info.Server)
+		return nil, errset.ErrG.NewError(nil, "address check : %s", info.Server)
 	}
 
 	portNum, portErr := strconv.Atoi(port[1])
 	if portErr != nil {
-		return nil, errlist.ErrG.NewError(portErr, "port convert failed : %s", port[1])
+		return nil, errset.ErrG.NewError(portErr, "port convert failed : %s", port[1])
 	}
 	cluster := gocql.NewCluster(hosts...)
 	cluster.Port = portNum
@@ -43,7 +43,7 @@ func NewCassandraGenerator(info types.ConnConfig, lExtension log.LoggerLogExtens
 
 func (c *cassandraGenerator) Gen(ctx context.Context, l log.LoggerDebugExtension[any]) (types.Conn, error) {
 	if sess, sessErr := c.cluster.CreateSession(); sessErr != nil {
-		return nil, errlist.ErrG.NewError(sessErr, "create session failed")
+		return nil, errset.ErrG.NewError(sessErr, "create session failed")
 	} else {
 		return connection.NewCassandraConn(sess)
 	}

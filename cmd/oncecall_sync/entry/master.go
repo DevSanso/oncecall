@@ -4,7 +4,7 @@ import (
 	"context"
 	"oncecall/cmd/oncecall_sync/entry/master"
 	"oncecall/cmd/oncecall_sync/global/log"
-	"oncecall/errlist"
+	"oncecall/errset"
 	"oncecall/utils/generic"
 	"time"
 )
@@ -29,7 +29,7 @@ func masterDownStart(m master.ProcManager, down []string) error {
 		pid, err := m.Start(l)
 
 		if err != nil {
-			return errlist.ErrG.NewError(err, "start %s failed", l)
+			return errset.ErrG.NewError(err, "start %s failed", l)
 		}
 
 		log.Log.Manage.Info("start (ident:%s, pid:%d) success", l, pid)
@@ -40,7 +40,7 @@ func masterDownStart(m master.ProcManager, down []string) error {
 func masterDownAliveProc(m master.ProcManager, killList []string) error {
 	for _, l := range killList {
 		if err := m.Kill(l); err != nil {
-			return errlist.ErrG.NewError(err, "kill %s failed", l)
+			return errset.ErrG.NewError(err, "kill %s failed", l)
 		}
 	}
 
@@ -61,7 +61,7 @@ entry:
 
 		list, listErr := dbFetcher.DBListIdent(ctx)
 		if listErr != nil {
-			frame := errlist.ErrG.NewError(listErr, "master entry load failed")
+			frame := errset.ErrG.NewError(listErr, "master entry load failed")
 			log.Log.Manage.Error(frame.Error())
 			continue
 		}
@@ -70,12 +70,12 @@ entry:
 		killList := generic.Difference(alive, procManager.List())
 
 		if startErr := masterDownStart(procManager, down); startErr != nil {
-			frame := errlist.ErrG.NewError(startErr, "master entry start process failed")
+			frame := errset.ErrG.NewError(startErr, "master entry start process failed")
 			log.Log.Manage.Error(frame.Error())
 		}
 
 		if killErr := masterDownAliveProc(procManager, killList); killErr != nil {
-			frame := errlist.ErrG.NewError(killErr, "master entry kill process failed")
+			frame := errset.ErrG.NewError(killErr, "master entry kill process failed")
 			log.Log.Manage.Error(frame.Error())
 		}
 

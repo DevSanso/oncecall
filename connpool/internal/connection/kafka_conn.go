@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"oncecall/connpool/types"
-	"oncecall/errlist"
-	"oncecall/errlist/prefix"
+	"oncecall/errset"
+	"oncecall/errset/prefix"
 
 	"github.com/IBM/sarama"
 )
@@ -21,13 +21,13 @@ type kafkaConn struct {
 func NewKafkaConn(addr string, topic string) (types.Conn, error) {
 	c, cErr := sarama.NewConsumer([]string{addr}, nil)
 	if cErr != nil {
-		return nil, errlist.ErrG.NewError(cErr, "kafka consumer get failed")
+		return nil, errset.ErrG.NewError(cErr, "kafka consumer get failed")
 	}
 
 	p, pErr := sarama.NewSyncProducer([]string{addr}, nil)
 	if pErr != nil {
 		_ = c.Close()
-		return nil, errlist.ErrG.NewError(cErr, "kafka consumer get failed")
+		return nil, errset.ErrG.NewError(cErr, "kafka consumer get failed")
 	}
 
 	return &kafkaConn{
@@ -41,7 +41,7 @@ func NewKafkaConn(addr string, topic string) (types.Conn, error) {
 func (k *kafkaConn) RunExecute(ctx context.Context, arg *types.Args) error {
 	err := k.WriteData(k.topic, arg)
 	if err != nil {
-		return errlist.ErrG.NewError(err, "write data failed")
+		return errset.ErrG.NewError(err, "write data failed")
 	}
 	return nil
 }
@@ -51,12 +51,12 @@ func (k *kafkaConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any
 		Count int `json:"count"`
 	}
 	if err := json.Unmarshal([]byte(arg.Query), &res); err != nil {
-		return nil, nil, nil, errlist.ErrG.NewError(err, "unmarshal query failed, %s", arg.Query)
+		return nil, nil, nil, errset.ErrG.NewError(err, "unmarshal query failed, %s", arg.Query)
 	}
 	var temp int64
 	rows, name, ty, temp, err = k.ReadData(ctx, k.topic, res.Count, k.consumerOffset)
 	if err != nil {
-		return nil, nil, nil, errlist.ErrG.NewError(err, "read data failed (topic:%s, offset:%d)", k.topic, k.consumerOffset)
+		return nil, nil, nil, errset.ErrG.NewError(err, "read data failed (topic:%s, offset:%d)", k.topic, k.consumerOffset)
 	}
 	k.consumerOffset = temp
 	return rows, name, nil, nil
@@ -73,7 +73,7 @@ func (k *kafkaConn) WriteData(topicName string, arg *types.Args) error {
 
 	for idx, data := range arg.Args {
 		if len(data) < 1 {
-			return errlist.ErrG.NewError(prefix.SentinelCatchError, "data is empty %d", idx)
+			return errset.ErrG.NewError(prefix.SentinelCatchError, "data is empty %d", idx)
 		}
 
 		if data[0] == nil {
@@ -87,7 +87,7 @@ func (k *kafkaConn) WriteData(topicName string, arg *types.Args) error {
 		case []byte:
 			messageValue = sarama.ByteEncoder(data[0].([]byte))
 		default:
-			return errlist.ErrG.NewError(prefix.NotMatchingError, "convert failed data (only support string, []byte)%v", data)
+			return errset.ErrG.NewError(prefix.NotMatchingError, "convert failed data (only support string, []byte)%v", data)
 		}
 
 		messages = append(messages, &sarama.ProducerMessage{
@@ -99,22 +99,22 @@ func (k *kafkaConn) WriteData(topicName string, arg *types.Args) error {
 	if arg.IsTransaction {
 		if txErr := k.producer.BeginTxn(); txErr != nil {
 			_ = k.producer.AbortTxn()
-			return errlist.ErrG.NewError(txErr, "txn is failed")
+			return errset.ErrG.NewError(txErr, "txn is failed")
 		}
 
 		if sendErr := k.producer.SendMessages(messages); sendErr != nil {
 			_ = k.producer.AbortTxn()
-			return errlist.ErrG.NewError(sendErr, "tx send error, topic :%s", topicName)
+			return errset.ErrG.NewError(sendErr, "tx send error, topic :%s", topicName)
 		}
 
 		if commitTxn := k.producer.CommitTxn(); commitTxn != nil {
 			_ = k.producer.AbortTxn()
-			return errlist.ErrG.NewError(commitTxn, "txn is commit failed")
+			return errset.ErrG.NewError(commitTxn, "txn is commit failed")
 		}
 
 	} else {
 		if sendErr := k.producer.SendMessages(messages); sendErr != nil {
-			return errlist.ErrG.NewError(sendErr, "send error, topic :%s", topicName)
+			return errset.ErrG.NewError(sendErr, "send error, topic :%s", topicName)
 		}
 	}
 
@@ -139,7 +139,7 @@ func (k *kafkaConn) ReadData(ctx context.Context, topicName string, count int, o
 
 	partitions, partErr := c.Partitions(topicName)
 	if partErr != nil {
-		return nil, nil, nil, offset, errlist.ErrG.NewError(partErr, "get partition failed")
+		return nil, nil, nil, offset, errset.ErrG.NewError(partErr, "get partition failed")
 	}
 
 	if offset < -1 {
@@ -151,7 +151,7 @@ func (k *kafkaConn) ReadData(ctx context.Context, topicName string, count int, o
 	for _, part := range partitions {
 		channel, chanErr := c.ConsumePartition(topicName, part, offset)
 		if chanErr != nil {
-			return nil, nil, nil, offset, errlist.ErrG.NewError(chanErr, "get consume channel %d", part)
+			return nil, nil, nil, offset, errset.ErrG.NewError(chanErr, "get consume channel %d", part)
 		}
 
 		defer channel.Close()
@@ -177,7 +177,7 @@ func (k *kafkaConn) ReadData(ctx context.Context, topicName string, count int, o
 		for _, ch := range errChannels {
 			select {
 			case errMsg := <-ch:
-				return nil, nil, nil, offset, errlist.ErrG.NewError(errMsg.Err, "consume send error string, topic :%s", errMsg.Topic)
+				return nil, nil, nil, offset, errset.ErrG.NewError(errMsg.Err, "consume send error string, topic :%s", errMsg.Topic)
 			default:
 			}
 		}
@@ -204,7 +204,7 @@ func (k *kafkaConn) ReadData(ctx context.Context, topicName string, count int, o
 		"partition",
 		"key",
 		"value",
-	}, []types.ConnPoolColType {
+	}, []types.ConnPoolColType{
 		types.ConnPoolColTypeBigInt,
 		types.ConnPoolColTypeText,
 		types.ConnPoolColTypeInt,

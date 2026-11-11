@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"oncecall/connpool/internal/ffi"
-	"oncecall/errlist"
+	"oncecall/errset"
 )
 
 type odbcConn struct {
@@ -22,25 +22,25 @@ func NewOdbcConn(raw *ffi.ODBCFfi) types.Conn {
 
 func (c *odbcConn) RunExecute(ctx context.Context, arg *types.Args) error {
 	if arg == nil {
-		return errlist.ErrG.NewError(nil, "ODBC execute arguments are nil")
+		return errset.ErrG.NewError(nil, "ODBC execute arguments are nil")
 	}
 	if strings.TrimSpace(arg.Query) == "" {
-		return errlist.ErrG.NewError(nil, "ODBC execute query is empty")
+		return errset.ErrG.NewError(nil, "ODBC execute query is empty")
 	}
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if c.closed || c.raw == nil {
-		return errlist.ErrG.NewError(nil, "ODBC connection is closed")
+		return errset.ErrG.NewError(nil, "ODBC connection is closed")
 	}
 	if err := ctx.Err(); err != nil {
-		return errlist.ErrG.NewError(err, "ODBC execute canceled")
+		return errset.ErrG.NewError(err, "ODBC execute canceled")
 	}
 
 	if arg.IsTransaction {
 		if err := c.raw.SetAutocommit(false); err != nil {
-			return errlist.ErrG.NewError(err, "ODBC begin transaction failed")
+			return errset.ErrG.NewError(err, "ODBC begin transaction failed")
 		}
 	}
 
@@ -64,23 +64,23 @@ func (c *odbcConn) RunExecute(ctx context.Context, arg *types.Args) error {
 	if arg.IsTransaction {
 		if execErr != nil {
 			if err := c.raw.EndTransaction(false); err != nil {
-				execErr = errlist.ErrG.NewError(
+				execErr = errset.ErrG.NewError(
 					err,
 					"ODBC rollback failed after execution error: %v",
 					execErr,
 				)
 			}
 		} else if err := c.raw.EndTransaction(true); err != nil {
-			execErr = errlist.ErrG.NewError(err, "ODBC commit failed")
+			execErr = errset.ErrG.NewError(err, "ODBC commit failed")
 		}
 
 		if err := c.raw.SetAutocommit(true); err != nil {
-			return errlist.ErrG.NewError(err, "ODBC restore autocommit failed")
+			return errset.ErrG.NewError(err, "ODBC restore autocommit failed")
 		}
 	}
 
 	if execErr != nil {
-		return errlist.ErrG.NewError(execErr, "ODBC execute failed")
+		return errset.ErrG.NewError(execErr, "ODBC execute failed")
 	}
 	return nil
 }
@@ -90,20 +90,20 @@ func (c *odbcConn) RunQuery(
 	arg *types.Args,
 ) ([][]any, []string, []types.ConnPoolColType, error) {
 	if arg == nil {
-		return nil, nil, nil, errlist.ErrG.NewError(nil, "ODBC query arguments are nil")
+		return nil, nil, nil, errset.ErrG.NewError(nil, "ODBC query arguments are nil")
 	}
 	if strings.TrimSpace(arg.Query) == "" {
-		return nil, nil, nil, errlist.ErrG.NewError(nil, "ODBC query is empty")
+		return nil, nil, nil, errset.ErrG.NewError(nil, "ODBC query is empty")
 	}
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if c.closed || c.raw == nil {
-		return nil, nil, nil, errlist.ErrG.NewError(nil, "ODBC connection is closed")
+		return nil, nil, nil, errset.ErrG.NewError(nil, "ODBC connection is closed")
 	}
 	if err := ctx.Err(); err != nil {
-		return nil, nil, nil, errlist.ErrG.NewError(err, "ODBC query canceled")
+		return nil, nil, nil, errset.ErrG.NewError(err, "ODBC query canceled")
 	}
 
 	sets := arg.Args
@@ -111,7 +111,7 @@ func (c *odbcConn) RunQuery(
 		sets = [][]any{nil}
 	}
 	if len(sets) != 1 {
-		return nil, nil, nil, errlist.ErrG.NewError(
+		return nil, nil, nil, errset.ErrG.NewError(
 			nil,
 			"ODBC query expects one parameter set, got %d",
 			len(sets),
@@ -120,11 +120,11 @@ func (c *odbcConn) RunQuery(
 
 	rows, names, ty, err := c.raw.Query(arg.Query, sets[0])
 	if err != nil {
-		return nil, nil, nil, errlist.ErrG.NewError(err, "ODBC query failed")
+		return nil, nil, nil, errset.ErrG.NewError(err, "ODBC query failed")
 	}
 
 	if err := ctx.Err(); err != nil {
-		return nil, nil, nil, errlist.ErrG.NewError(err, "ODBC query canceled after execution")
+		return nil, nil, nil, errset.ErrG.NewError(err, "ODBC query canceled after execution")
 	}
 
 	return rows, names, ty, nil
@@ -147,7 +147,7 @@ func (c *odbcConn) Close() error {
 	c.raw = nil
 
 	if err != nil {
-		return errlist.ErrG.NewError(err, "ODBC connection close failed")
+		return errset.ErrG.NewError(err, "ODBC connection close failed")
 	}
 	return nil
 }

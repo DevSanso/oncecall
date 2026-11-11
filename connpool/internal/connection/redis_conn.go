@@ -4,7 +4,7 @@ import (
 	"context"
 	"oncecall/connpool/internal/utils"
 	"oncecall/connpool/types"
-	"oncecall/errlist"
+	"oncecall/errset"
 	"reflect"
 	"strconv"
 	"strings"
@@ -28,7 +28,7 @@ func (r *redisConn) RunExecute(ctx context.Context, arg *types.Args) error {
 		ret := r.conn.Do(ctx, r.commonUtils.SplitRespectQuotesAny(trimQuery)...)
 
 		if ret.Err() != nil {
-			return errlist.ErrG.NewError(ret.Err(), "query:[%s]", trimQuery)
+			return errset.ErrG.NewError(ret.Err(), "query:[%s]", trimQuery)
 		}
 		return nil
 	}
@@ -37,7 +37,7 @@ func (r *redisConn) RunExecute(ctx context.Context, arg *types.Args) error {
 
 	if arg.IsTransaction {
 		if ret := r.conn.Do(ctx, "MULTI"); ret.Err() != nil {
-			return errlist.ErrG.NewError(ret.Err(), "query:[%s]", trimQuery)
+			return errset.ErrG.NewError(ret.Err(), "query:[%s]", trimQuery)
 		}
 	}
 
@@ -55,12 +55,12 @@ func (r *redisConn) RunExecute(ctx context.Context, arg *types.Args) error {
 
 	if arg.IsTransaction {
 		if ret := r.conn.Do(ctx, "EXEC"); ret.Err() != nil {
-			return errlist.ErrG.NewError(ret.Err(), "query:[%s]", trimQuery)
+			return errset.ErrG.NewError(ret.Err(), "query:[%s]", trimQuery)
 		}
 	}
 
 	if loopRetErr != nil {
-		return errlist.ErrG.NewError(loopRetErr, "query:[%s]", trimQuery)
+		return errset.ErrG.NewError(loopRetErr, "query:[%s]", trimQuery)
 	}
 
 	return nil
@@ -71,7 +71,7 @@ func (r *redisConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any
 	trimQuery = strings.ReplaceAll(trimQuery, "\r", "")
 
 	if arg.IsTransaction {
-		return nil, nil, nil, errlist.ErrG.NewError(nil, "ERROR: RunExecute exec(tran multi) not support")
+		return nil, nil, nil, errset.ErrG.NewError(nil, "ERROR: RunExecute exec(tran multi) not support")
 	}
 
 	var doRet *redis.Cmd
@@ -87,12 +87,12 @@ func (r *redisConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any
 		doRet = r.conn.Do(ctx, realP...)
 	}
 	if (doRet != nil) && doRet.Err() != nil {
-		return nil, nil, nil, errlist.ErrG.NewError(doRet.Err(), "query:[%s]", trimQuery)
+		return nil, nil, nil, errset.ErrG.NewError(doRet.Err(), "query:[%s]", trimQuery)
 	}
 
 	var buf [][]any
 	if buf, ty, err = r.parseOutputAny(doRet.Val()); err != nil {
-		return nil, nil, nil, errlist.ErrG.NewError(err, "query:[%s]", trimQuery)
+		return nil, nil, nil, errset.ErrG.NewError(err, "query:[%s]", trimQuery)
 	}
 
 	name = make([]string, len(buf))
@@ -121,20 +121,20 @@ func (r *redisConn) parseOutputAny(val any) ([][]any, []types.ConnPoolColType, e
 		ret[0] = []any{v}
 		ty = make([]types.ConnPoolColType, 1)
 		ty[0] = types.ConnPoolColTypeBigInt
-	case  float64:
+	case float64:
 		ret[0] = []any{v}
 		ty = make([]types.ConnPoolColType, 1)
 		ty[0] = types.ConnPoolColTypeFloat64
-	case  string:
+	case string:
 		ret[0] = []any{v}
 		ty = make([]types.ConnPoolColType, 1)
 		ty[0] = types.ConnPoolColTypeText
-	case  bool:
+	case bool:
 		ret[0] = []any{v}
 		ty = make([]types.ConnPoolColType, 1)
 		ty[0] = types.ConnPoolColTypeBool
 	default:
-		return nil, nil, errlist.ErrG.NewError(nil, "Parse not support %s", reflect.ValueOf(val).Type().Name())
+		return nil, nil, errset.ErrG.NewError(nil, "Parse not support %s", reflect.ValueOf(val).Type().Name())
 	}
 
 	return ret, ty, nil

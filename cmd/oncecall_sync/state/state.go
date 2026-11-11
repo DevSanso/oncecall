@@ -3,8 +3,8 @@ package state
 import (
 	"context"
 	"oncecall/connpool/types"
-	"oncecall/errlist"
-	"oncecall/errlist/prefix"
+	"oncecall/errset"
+	"oncecall/errset/prefix"
 	"oncecall/utils/generic"
 	"oncecall/vm"
 	"oncecall/vm/lua"
@@ -65,7 +65,7 @@ func (i *implSharedState) ExistsConnPool(ident string) (is bool) {
 func (i *implSharedState) GetConnPool(ident string) (connPool types.ConnPool, err error) {
 	conn, exists := i.connPool.Load(ident)
 	if !exists {
-		return nil, errlist.ErrG.NewError(prefix.NotExistsError, "%s not exists", ident)
+		return nil, errset.ErrG.NewError(prefix.NotExistsError, "%s not exists", ident)
 	}
 
 	return conn, nil

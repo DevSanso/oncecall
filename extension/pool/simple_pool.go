@@ -3,8 +3,8 @@ package pool
 import (
 	"context"
 	"io"
-	"oncecall/errlist"
-	"oncecall/errlist/prefix"
+	"oncecall/errset"
+	"oncecall/errset/prefix"
 	"oncecall/extension/log"
 	"oncecall/extension/metric"
 	"sync"
@@ -41,7 +41,7 @@ func (u *SimplePoolExtension[T, R]) gen() (T, error) {
 	data, err = u.Gen(u.Context, u.Logger)
 
 	if err != nil {
-		err = errlist.ErrG.NewError(err, "gen failed")
+		err = errset.ErrG.NewError(err, "gen failed")
 	}
 
 	return data, err
@@ -49,13 +49,13 @@ func (u *SimplePoolExtension[T, R]) gen() (T, error) {
 
 func (u *SimplePoolExtension[T, R]) Use(useFn func(data T) (R, error)) (ret R, err error) {
 	if u.isClose.Load() {
-		return ret, errlist.ErrG.NewError(prefix.ClosedError, "SyncExpirePool already closed")
+		return ret, errset.ErrG.NewError(prefix.ClosedError, "SyncExpirePool already closed")
 	}
 
 	select {
 	case <-u.Context.Done():
 		_ = u.Close()
-		return ret, errlist.ErrG.NewError(prefix.ClosedError, "SyncExpirePool already camcel context")
+		return ret, errset.ErrG.NewError(prefix.ClosedError, "SyncExpirePool already camcel context")
 	default:
 	}
 
@@ -83,7 +83,7 @@ func (u *SimplePoolExtension[T, R]) Use(useFn func(data T) (R, error)) (ret R, e
 		if err != nil {
 			u.accErrCnt.Add(1)
 			u.Metric.Assignment(u.Name, poolExtensionImplMetricAccErrKey, float64(u.accErrCnt.Load()))
-			return ret, errlist.ErrG.NewError(err, "use, gen failed")
+			return ret, errset.ErrG.NewError(err, "use, gen failed")
 		}
 	}
 
@@ -109,7 +109,7 @@ func (u *SimplePoolExtension[T, R]) Use(useFn func(data T) (R, error)) (ret R, e
 			poolExtensionImplMetricUseKey:    float64(u.useCnt.Load()),
 			poolExtensionImplMetricAccErrKey: float64(u.accErrCnt.Load()),
 		})
-		return ret, errlist.ErrG.NewError(useErr, "pool.use execute failed")
+		return ret, errset.ErrG.NewError(useErr, "pool.use execute failed")
 	}
 
 	if !u.isClose.Load() {
@@ -131,7 +131,7 @@ func (u *SimplePoolExtension[T, R]) Use(useFn func(data T) (R, error)) (ret R, e
 
 func (u *SimplePoolExtension[T, R]) Close() error {
 	if u.isClose.Swap(true) {
-		return errlist.ErrG.NewError(prefix.ClosedError, "SyncExpirePool already closed")
+		return errset.ErrG.NewError(prefix.ClosedError, "SyncExpirePool already closed")
 	}
 loop:
 	for {

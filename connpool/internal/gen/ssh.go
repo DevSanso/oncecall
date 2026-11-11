@@ -4,8 +4,8 @@ import (
 	"context"
 	"oncecall/connpool/internal/connection"
 	"oncecall/connpool/types"
-	"oncecall/errlist"
-	"oncecall/errlist/prefix"
+	"oncecall/errset"
+	"oncecall/errset/prefix"
 	"oncecall/extension/log"
 
 	"golang.org/x/crypto/ssh"
@@ -25,11 +25,11 @@ func NewSSHGenerator(info types.ConnConfig, lExtension log.LoggerLogExtension[an
 
 	outputSplitCharOpt, exists = info.OptionMap["output.splitchar"]
 	if !exists {
-		return nil, errlist.ErrG.NewError(prefix.NotExistsError, "output.splitchar not exists")
+		return nil, errset.ErrG.NewError(prefix.NotExistsError, "output.splitchar not exists")
 	}
 	outputNewlineCharOpt, exists = info.OptionMap["output.newline"]
 	if !exists {
-		return nil, errlist.ErrG.NewError(prefix.NotExistsError, "output.newline not exists")
+		return nil, errset.ErrG.NewError(prefix.NotExistsError, "output.newline not exists")
 	}
 
 	return &sshGenerator{
@@ -43,7 +43,7 @@ func NewSSHGenerator(info types.ConnConfig, lExtension log.LoggerLogExtension[an
 func (s *sshGenerator) Gen(ctx context.Context, l log.LoggerDebugExtension[any]) (types.Conn, error) {
 	sess, sessErr := s.client.NewSession()
 	if sessErr != nil {
-		return nil, errlist.ErrG.NewError(sessErr, "ssh get failed")
+		return nil, errset.ErrG.NewError(sessErr, "ssh get failed")
 	}
 
 	return connection.NewSshConn(sess, s.newlineChar, s.splitChar), nil

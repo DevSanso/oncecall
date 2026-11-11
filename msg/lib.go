@@ -1,6 +1,7 @@
 package msg
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -29,15 +30,19 @@ type msgPackageNameMap struct {
 
 var (
 	C MessageLevel = "Critical"
-	N MessageLevel = "Normal"
 	W MessageLevel = "Warn"
 	E MessageLevel = "Error"
 )
 
 type MessageDesc struct {
+	Code  MessageCode
 	Level MessageLevel
 	Name  string
 	Text  string
+}
+
+func (md *MessageDesc) SPrint() string {
+	return fmt.Sprintf("[code:%d, level:%s] %s", md.Code, md.Level, md.Text)
 }
 
 var messageMap map[MessageTarget]map[MessageCode]MessageDesc

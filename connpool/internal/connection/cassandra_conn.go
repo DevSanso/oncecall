@@ -3,7 +3,7 @@ package connection
 import (
 	"context"
 	"oncecall/connpool/types"
-	"oncecall/errlist"
+	"oncecall/errset"
 
 	gocql "github.com/apache/cassandra-gocql-driver/v2"
 )
@@ -39,7 +39,7 @@ func (c *cassandraConn) RunExecute(ctx context.Context, arg *types.Args) error {
 	}
 
 	if execErr := execFn.ExecContext(ctx); execErr != nil {
-		return errlist.ErrG.NewError(execErr, "exec failed")
+		return errset.ErrG.NewError(execErr, "exec failed")
 	}
 	return nil
 }
@@ -59,7 +59,7 @@ func (c *cassandraConn) makeRowBuffer(cols []gocql.ColumnInfo) (data []any, err 
 		case gocql.TypeInt, gocql.TypeSmallInt:
 			data[i] = int(0)
 		default:
-			return nil, errlist.ErrG.NewError(nil, "not support type:%v", col.TypeInfo.Type())
+			return nil, errset.ErrG.NewError(nil, "not support type:%v", col.TypeInfo.Type())
 		}
 
 	}
@@ -87,24 +87,24 @@ func (c *cassandraConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][
 	for idx := range cols {
 		name[idx] = cols[idx].Name
 		switch cols[idx].TypeInfo.Type() {
-			case gocql.TypeVarchar, gocql.TypeText:
-				ty[idx] = types.ConnPoolColTypeText
-			case gocql.TypeFloat, gocql.TypeDouble:
-				ty[idx] =types.ConnPoolColTypeFloat64
-			case gocql.TypeBlob:
-				ty[idx] = types.ConnPoolColTypeBytes
-			case gocql.TypeBigInt:
-				ty[idx] = types.ConnPoolColTypeBigInt
-			case gocql.TypeInt, gocql.TypeSmallInt:
-				ty[idx] = types.ConnPoolColTypeInt
-			default:
-				return nil, nil, nil, errlist.ErrG.NewError(nil, "not support type:%v", cols[idx].TypeInfo.Type())
+		case gocql.TypeVarchar, gocql.TypeText:
+			ty[idx] = types.ConnPoolColTypeText
+		case gocql.TypeFloat, gocql.TypeDouble:
+			ty[idx] = types.ConnPoolColTypeFloat64
+		case gocql.TypeBlob:
+			ty[idx] = types.ConnPoolColTypeBytes
+		case gocql.TypeBigInt:
+			ty[idx] = types.ConnPoolColTypeBigInt
+		case gocql.TypeInt, gocql.TypeSmallInt:
+			ty[idx] = types.ConnPoolColTypeInt
+		default:
+			return nil, nil, nil, errset.ErrG.NewError(nil, "not support type:%v", cols[idx].TypeInfo.Type())
 		}
 	}
 
 	value, valueErr := c.makeRowBuffer(cols)
 	if valueErr != nil {
-		return nil, nil, nil, errlist.ErrG.NewError(valueErr, "query cols get buffer failed : ")
+		return nil, nil, nil, errset.ErrG.NewError(valueErr, "query cols get buffer failed : ")
 	}
 
 	for idx := range value {
@@ -117,7 +117,7 @@ func (c *cassandraConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][
 
 		value, valueErr = c.makeRowBuffer(cols)
 		if valueErr != nil {
-			return nil, nil, nil, errlist.ErrG.NewError(valueErr, "query cols get buffer failed ")
+			return nil, nil, nil, errset.ErrG.NewError(valueErr, "query cols get buffer failed ")
 		}
 
 		for idx := range value {

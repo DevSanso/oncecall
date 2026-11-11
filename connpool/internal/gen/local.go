@@ -5,8 +5,8 @@ import (
 	"oncecall/connpool/internal/connection"
 	"oncecall/connpool/internal/utils"
 	"oncecall/connpool/types"
-	"oncecall/errlist"
-	"oncecall/errlist/prefix"
+	"oncecall/errset"
+	"oncecall/errset/prefix"
 	"oncecall/extension/log"
 )
 
@@ -29,31 +29,31 @@ func NewLocalGenerator(info types.ConnConfig, lExtension log.LoggerLogExtension[
 
 	interactiveOpt, exists = info.OptionMap["interactive"]
 	if !exists {
-		return nil, errlist.ErrG.NewError(prefix.NotExistsError, "interactive not exists")
+		return nil, errset.ErrG.NewError(prefix.NotExistsError, "interactive not exists")
 	}
 	outputSplitCharOpt, exists = info.OptionMap["output.splitchar"]
 	if !exists {
-		return nil, errlist.ErrG.NewError(prefix.NotExistsError, "output.splitchar not exists")
+		return nil, errset.ErrG.NewError(prefix.NotExistsError, "output.splitchar not exists")
 	}
 	outputNewlineCharOpt, exists = info.OptionMap["output.newline"]
 	if !exists {
-		return nil, errlist.ErrG.NewError(prefix.NotExistsError, "output.newline not exists")
+		return nil, errset.ErrG.NewError(prefix.NotExistsError, "output.newline not exists")
 	}
 	outputEndCharOpt, exists = info.OptionMap["output.endchar"]
 	if !exists {
-		return nil, errlist.ErrG.NewError(prefix.NotExistsError, "input.endchar not exists")
+		return nil, errset.ErrG.NewError(prefix.NotExistsError, "input.endchar not exists")
 	}
 	inputNextLineCharOpt, exists = info.OptionMap["input.nextline"]
 	if !exists {
-		return nil, errlist.ErrG.NewError(prefix.NotExistsError, "input.nextline not exists")
+		return nil, errset.ErrG.NewError(prefix.NotExistsError, "input.nextline not exists")
 	}
 	inputDivisionCharOpt, exists = info.OptionMap["input.division"]
 	if !exists {
-		return nil, errlist.ErrG.NewError(prefix.NotExistsError, "input.division not exists")
+		return nil, errset.ErrG.NewError(prefix.NotExistsError, "input.division not exists")
 	}
 	inputEndCharOpt, exists = info.OptionMap["input.endchar"]
 	if !exists {
-		return nil, errlist.ErrG.NewError(prefix.NotExistsError, "input.endchar not exists")
+		return nil, errset.ErrG.NewError(prefix.NotExistsError, "input.endchar not exists")
 	}
 	argsOpt, exists = info.OptionMap["args"]
 	var args []string = []string{}
@@ -61,7 +61,7 @@ func NewLocalGenerator(info types.ConnConfig, lExtension log.LoggerLogExtension[
 	if exists {
 		argStr, convOk := argsOpt.(string)
 		if !convOk {
-			return nil, errlist.ErrG.NewError(prefix.ParseError, "args convert failed %v", argsOpt)
+			return nil, errset.ErrG.NewError(prefix.ParseError, "args convert failed %v", argsOpt)
 		}
 		var commonUtils utils.CommonUtils
 		args = commonUtils.SplitRespectQuotesStr(argStr)

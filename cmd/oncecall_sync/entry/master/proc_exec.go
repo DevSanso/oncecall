@@ -3,8 +3,8 @@ package master
 import (
 	"fmt"
 	"maps"
-	"oncecall/errlist"
-	"oncecall/errlist/prefix"
+	"oncecall/errset"
+	"oncecall/errset/prefix"
 	"os"
 	"os/exec"
 	"slices"
@@ -108,7 +108,7 @@ func (pm *implProcManager) Kill(syncIdent string) error {
 	pm.mu.RUnlock()
 
 	if !ok {
-		return errlist.ErrG.NewError(
+		return errset.ErrG.NewError(
 			prefix.NotExistsError,
 			"process not found: %s",
 			syncIdent,
@@ -117,10 +117,10 @@ func (pm *implProcManager) Kill(syncIdent string) error {
 
 	exists, err := pm.existsProcPid(p.PID)
 	if err != nil {
-		return errlist.ErrG.NewError(err, "check process failed")
+		return errset.ErrG.NewError(err, "check process failed")
 	}
 	if !exists {
-		return errlist.ErrG.NewError(
+		return errset.ErrG.NewError(
 			prefix.NotExistsError,
 			"process not found: %s",
 			syncIdent,
@@ -129,11 +129,11 @@ func (pm *implProcManager) Kill(syncIdent string) error {
 
 	ppid, err := pm.readPPID(p.PID)
 	if err != nil {
-		return errlist.ErrG.NewError(err, "read process PPID failed")
+		return errset.ErrG.NewError(err, "read process PPID failed")
 	}
 
 	if ppid != rootPid {
-		return errlist.ErrG.NewError(
+		return errset.ErrG.NewError(
 			prefix.NotExistsError,
 			"process parent mismatch: %s",
 			syncIdent,
@@ -141,7 +141,7 @@ func (pm *implProcManager) Kill(syncIdent string) error {
 	}
 
 	if err := p.Cmd.Process.Kill(); err != nil {
-		return errlist.ErrG.NewError(err, "kill process failed")
+		return errset.ErrG.NewError(err, "kill process failed")
 	}
 
 	pm.mu.Lock()

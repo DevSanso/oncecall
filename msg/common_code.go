@@ -2,8 +2,11 @@ package msg
 
 const COMMON_TAGET MessageTarget = 0
 const (
-	PROC_STARTUP MessageCode = 1
-	PROC_CORE    MessageCode = 99999
-	PROC_WARNING MessageCode = 2
-	PROC_ERROR   MessageCode = 3
+	COMMON_CONTEXT_WRAP_ERROR_EMPTY_CODE        MessageCode = 8000
+	COMMON_CONTEXT_WRAP_ERROR_TOP_IS_DUMMY_CODE MessageCode = 8001
+	COMMON___BROKEN_GO_SYSTEM_CALL_CODE         MessageCode = 8002
+	COMMON___NIL_POINTER_CODE                   MessageCode = 8003
+	COMMON_DUMMY_C                              MessageCode = 9997
+	COMMON_DUMMY_W                              MessageCode = 9998
+	COMMON_DUMMY_E                              MessageCode = 9999
 )

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"oncecall/connpool/types"
 	"oncecall/define"
-	"oncecall/errlist"
-	"oncecall/errlist/prefix"
+	"oncecall/errset"
+	"oncecall/errset/prefix"
 )
 
 type StdSqlUtils struct{}
@@ -33,7 +33,7 @@ func (StdSqlUtils) GetConnUrlAndDriver(c *types.ConnConfig) (driver string, url 
 		driver = "duckdb"
 		url = c.Name
 	default:
-		e = errlist.ErrG.NewError(prefix.NotMatchingError, "not supported driver %s", c.DBType)
+		e = errset.ErrG.NewError(prefix.NotMatchingError, "not supported driver %s", c.DBType)
 	}
 	return
 }

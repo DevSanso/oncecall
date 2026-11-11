@@ -5,8 +5,8 @@ import (
 	"oncecall/connpool/internal/connection"
 	"oncecall/connpool/internal/ffi"
 	"oncecall/connpool/types"
-	"oncecall/errlist"
-	"oncecall/errlist/prefix"
+	"oncecall/errset"
+	"oncecall/errset/prefix"
 	"oncecall/extension/log"
 	"reflect"
 )
@@ -22,17 +22,17 @@ func NewODBCGenerator(info types.ConnConfig, lExtension log.LoggerLogExtension[a
 func (c *odbcGenerator) Gen(ctx context.Context, l log.LoggerDebugExtension[any]) (types.Conn, error) {
 	dsnBox, exists := c.info.OptionMap["dsn"]
 	if !exists {
-		return nil, errlist.ErrG.NewError(prefix.NotExistsError, "not exists dsn")
+		return nil, errset.ErrG.NewError(prefix.NotExistsError, "not exists dsn")
 	}
 
 	dsn, convOk := dsnBox.(string)
 	if !convOk {
-		return nil, errlist.ErrG.NewError(prefix.ParseError, "parsing failed dsn : %s", reflect.ValueOf(dsnBox).Type().Name())
+		return nil, errset.ErrG.NewError(prefix.ParseError, "parsing failed dsn : %s", reflect.ValueOf(dsnBox).Type().Name())
 	}
 
 	raw, err := ffi.OpenODBC(dsn)
 	if err != nil {
-		return nil, errlist.ErrG.NewError(
+		return nil, errset.ErrG.NewError(
 			err,
 			"ODBC connection creation failed",
 		)

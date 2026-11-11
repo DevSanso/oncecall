@@ -5,8 +5,8 @@ import (
 	"oncecall/cmd/oncecall_sync/global/config"
 	"oncecall/cmd/oncecall_sync/global/manage"
 	"oncecall/connpool/types"
-	"oncecall/errlist"
-	"oncecall/errlist/prefix"
+	"oncecall/errset"
+	"oncecall/errset/prefix"
 )
 
 type DbFetcher interface {
@@ -27,7 +27,7 @@ func (i implDbFetcher) DBListIdent(ctx context.Context) ([]string, error) {
 	})
 
 	if err != nil {
-		return nil, errlist.ErrG.NewError(err, "db list ident failed : %s", config.Config.Cmd.Db.Query.Manage.DbSyncList)
+		return nil, errset.ErrG.NewError(err, "db list ident failed : %s", config.Config.Cmd.Db.Query.Manage.DbSyncList)
 	}
 
 	if len(data) == 0 {
@@ -37,12 +37,12 @@ func (i implDbFetcher) DBListIdent(ctx context.Context) ([]string, error) {
 
 	for idx := range data {
 		if len(data[idx]) != 1 {
-			return nil, errlist.ErrG.NewError(prefix.SentinelCatchError, "db ident row length not matching %d", len(data[idx]))
+			return nil, errset.ErrG.NewError(prefix.SentinelCatchError, "db ident row length not matching %d", len(data[idx]))
 		}
 
 		conv, convOk := data[idx][0].(string)
 		if !convOk {
-			return nil, errlist.ErrG.NewError(prefix.ParseError, "db ident row content not matching %v", data[idx][0])
+			return nil, errset.ErrG.NewError(prefix.ParseError, "db ident row content not matching %v", data[idx][0])
 		}
 
 		ret = append(ret, conv)

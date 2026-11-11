@@ -4,8 +4,8 @@ import (
 	"context"
 	"oncecall/connpool/internal/connection"
 	"oncecall/connpool/types"
-	"oncecall/errlist"
-	"oncecall/errlist/prefix"
+	"oncecall/errset"
+	"oncecall/errset/prefix"
 	"oncecall/extension/log"
 	"strconv"
 
@@ -20,7 +20,7 @@ type redisGenerator struct {
 func NewRedisGenerator(info types.ConnConfig, lExtension log.LoggerLogExtension[any]) (Generator, error) {
 	db, convOk := strconv.Atoi(info.Name)
 	if convOk != nil {
-		return nil, errlist.ErrG.NewError(prefix.ParseError, "db is not number : %s", info.Name)
+		return nil, errset.ErrG.NewError(prefix.ParseError, "db is not number : %s", info.Name)
 	}
 
 	c := redis.NewClient(&redis.Options{

@@ -6,7 +6,7 @@ import (
 	"oncecall/connpool/internal/connection"
 	"oncecall/connpool/internal/utils"
 	"oncecall/connpool/types"
-	"oncecall/errlist"
+	"oncecall/errset"
 	"oncecall/extension/log"
 	"time"
 
@@ -30,12 +30,12 @@ func NewStdGenerator(info types.ConnConfig, lExtension log.LoggerLogExtension[an
 
 	driver, url, err := util.GetConnUrlAndDriver(&info)
 	if err != nil {
-		return nil, errlist.ErrG.NewError(err, "driver not exists, name:%s", info.Name)
+		return nil, errset.ErrG.NewError(err, "driver not exists, name:%s", info.Name)
 	}
 
 	db, dbErr = sql.Open(driver, url)
 	if dbErr != nil {
-		return nil, errlist.ErrG.NewError(dbErr, "driver open failed, name:%s", info.Name)
+		return nil, errset.ErrG.NewError(dbErr, "driver open failed, name:%s", info.Name)
 	}
 
 	db.SetMaxIdleConns(info.MaxConn)
@@ -48,7 +48,7 @@ func NewStdGenerator(info types.ConnConfig, lExtension log.LoggerLogExtension[an
 func (s *stdGenerator) Gen(ctx context.Context, logger log.LoggerDebugExtension[any]) (types.Conn, error) {
 	conn, err := s.db.Conn(ctx)
 	if err != nil {
-		return nil, errlist.ErrG.NewError(err, "get conn err, server(%s):name(%s)", s.info.Server, s.info.Name)
+		return nil, errset.ErrG.NewError(err, "get conn err, server(%s):name(%s)", s.info.Server, s.info.Name)
 	}
 
 	return connection.NewStdSqlConn(conn), nil

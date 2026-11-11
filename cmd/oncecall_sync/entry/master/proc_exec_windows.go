@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"oncecall/errlist"
+	"oncecall/errset"
 )
 
 func (pm *implProcManager) readPPID(pid int) (int, error) {
@@ -29,7 +29,7 @@ func (pm *implProcManager) readPPID(pid int) (int, error) {
 
 	output, err := cmd.Output()
 	if err != nil {
-		return -1, errlist.ErrG.NewError(
+		return -1, errset.ErrG.NewError(
 			err,
 			"read process PPID failed",
 		)
@@ -37,7 +37,7 @@ func (pm *implProcManager) readPPID(pid int) (int, error) {
 
 	ppid, err := strconv.Atoi(strings.TrimSpace(string(output)))
 	if err != nil {
-		return -1, errlist.ErrG.NewError(
+		return -1, errset.ErrG.NewError(
 			err,
 			"parse PPID failed",
 		)
@@ -70,7 +70,7 @@ func (pm *implProcManager) existsProcPid(pid int) (bool, error) {
 		return false, nil
 	}
 
-	return false, errlist.ErrG.NewError(
+	return false, errset.ErrG.NewError(
 		err,
 		"exists process failed",
 	)

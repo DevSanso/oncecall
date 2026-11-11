@@ -2,8 +2,8 @@ package generic
 
 import (
 	"io"
-	"oncecall/errlist"
-	"oncecall/errlist/prefix"
+	"oncecall/errset"
+	"oncecall/errset/prefix"
 	"sync"
 	"sync/atomic"
 )
@@ -106,12 +106,12 @@ func (p *SyncUsePool[T, R]) addStat(full, use, idle, err int) {
 }
 func (p *SyncUsePool[T, R]) Use(useFn func(data T) (R, error)) (ret R, err error) {
 	if p.isClose.Load() {
-		return ret, errlist.ErrG.NewError(prefix.ClosedError, "SyncExpirePool already closed")
+		return ret, errset.ErrG.NewError(prefix.ClosedError, "SyncExpirePool already closed")
 	}
 
 	pData := p.p.Get()
 	if pData.Second != nil {
-		return ret, errlist.ErrG.NewError(pData.Second, "get data failed")
+		return ret, errset.ErrG.NewError(pData.Second, "get data failed")
 	}
 
 	p.addStat(0, 1, -1, 0)
@@ -121,7 +121,7 @@ func (p *SyncUsePool[T, R]) Use(useFn func(data T) (R, error)) (ret R, err error
 	if err != nil {
 		_ = pData.First.data.Close()
 		p.addStat(-1, 0, -1, 1)
-		return ret, errlist.ErrG.NewError(err, "useFn failed")
+		return ret, errset.ErrG.NewError(err, "useFn failed")
 	}
 
 	if !p.isClose.Load() {
@@ -145,7 +145,7 @@ func (p *SyncUsePool[T, R]) Stat() (full, use, idle, accErr int) {
 
 func (p *SyncUsePool[T, R]) Close() error {
 	if p.isClose.Load() {
-		return errlist.ErrG.NewError(prefix.ClosedError, "SyncExpirePool already closed")
+		return errset.ErrG.NewError(prefix.ClosedError, "SyncExpirePool already closed")
 	}
 	p.isClose.Store(true)
 	full, use, idle, err := p.Stat()

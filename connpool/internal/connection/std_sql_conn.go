@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"oncecall/connpool/types"
-	"oncecall/errlist"
+	"oncecall/errset"
 	"slices"
 	"strings"
 )
@@ -82,7 +82,7 @@ func (s *stdSqlConn) RunExecute(ctx context.Context, arg *types.Args) error {
 	if !arg.IsTransaction {
 		tx, txErr := conn.BeginTx(ctx, nil)
 		if txErr != nil {
-			return errlist.ErrG.NewError(txErr, "exec tx failed, query:%s", arg.Query)
+			return errset.ErrG.NewError(txErr, "exec tx failed, query:%s", arg.Query)
 		}
 		var isNotErr = true
 
@@ -100,7 +100,7 @@ func (s *stdSqlConn) RunExecute(ctx context.Context, arg *types.Args) error {
 
 				if retErr != nil {
 					isNotErr = false
-					return errlist.ErrG.NewError(retErr, "exec sql failed query:%s", arg.Query)
+					return errset.ErrG.NewError(retErr, "exec sql failed query:%s", arg.Query)
 				}
 			}
 		} else {
@@ -108,7 +108,7 @@ func (s *stdSqlConn) RunExecute(ctx context.Context, arg *types.Args) error {
 
 			if retErr != nil {
 				isNotErr = false
-				return errlist.ErrG.NewError(retErr, "exec sql(no args) failed, query:%s", arg.Query)
+				return errset.ErrG.NewError(retErr, "exec sql(no args) failed, query:%s", arg.Query)
 			}
 		}
 	} else {
@@ -117,14 +117,14 @@ func (s *stdSqlConn) RunExecute(ctx context.Context, arg *types.Args) error {
 				_, retErr := conn.ExecContext(ctx, arg.Query, param...)
 
 				if retErr != nil {
-					return errlist.ErrG.NewError(retErr, "exec sql failed, query:%s", arg.Query)
+					return errset.ErrG.NewError(retErr, "exec sql failed, query:%s", arg.Query)
 				}
 			}
 		} else {
 			_, retErr := conn.ExecContext(ctx, arg.Query)
 
 			if retErr != nil {
-				return errlist.ErrG.NewError(retErr, "exec sql(no args) failed, query:%s", arg.Query)
+				return errset.ErrG.NewError(retErr, "exec sql(no args) failed, query:%s", arg.Query)
 			}
 		}
 	}
@@ -136,7 +136,7 @@ func (s *stdSqlConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]an
 	conn := s.conn
 
 	if arg.IsTransaction {
-		return nil, nil, nil, errlist.ErrG.NewError(nil, "exec sql transcation not support")
+		return nil, nil, nil, errset.ErrG.NewError(nil, "exec sql transcation not support")
 	}
 
 	var r *sql.Rows = nil
@@ -145,21 +145,21 @@ func (s *stdSqlConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]an
 		var retErr error
 		r, retErr = conn.QueryContext(ctx, arg.Query, param...)
 		if retErr != nil {
-			return nil, nil, nil, errlist.ErrG.NewError(retErr, "exec sql query failed")
+			return nil, nil, nil, errset.ErrG.NewError(retErr, "exec sql query failed")
 		}
 	} else {
 		var retErr error
 		r, retErr = conn.QueryContext(ctx, arg.Query)
 
 		if retErr != nil {
-			return nil, nil, nil, errlist.ErrG.NewError(retErr, "exec sql(no args) query failed")
+			return nil, nil, nil, errset.ErrG.NewError(retErr, "exec sql(no args) query failed")
 		}
 	}
 	defer r.Close()
 
 	cType, colErr := r.ColumnTypes()
 	if colErr != nil {
-		return nil, nil, nil, errlist.ErrG.NewError(colErr, "can't get column type")
+		return nil, nil, nil, errset.ErrG.NewError(colErr, "can't get column type")
 	}
 
 	ret := make([][]any, 0, 5)
@@ -179,7 +179,7 @@ func (s *stdSqlConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]an
 		} else if s.isTypeBytes(dType) {
 			tyBuf[cIdx] = types.ConnPoolColTypeBytes
 		} else {
-			return nil, nil, nil, errlist.ErrG.NewError(nil, "not support type,type:%s", dType)
+			return nil, nil, nil, errset.ErrG.NewError(nil, "not support type,type:%s", dType)
 		}
 	}
 
@@ -202,7 +202,7 @@ func (s *stdSqlConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]an
 			} else if tyBuf[idx] == types.ConnPoolColTypeBytes {
 				rowD[idx] = sql.RawBytes{}
 			} else {
-				return nil, nil, nil, errlist.ErrG.NewError(nil, "not support type,type:%s", tyBuf[idx])
+				return nil, nil, nil, errset.ErrG.NewError(nil, "not support type,type:%s", tyBuf[idx])
 			}
 
 			if !isFrist {
@@ -220,7 +220,7 @@ func (s *stdSqlConn) RunQuery(ctx context.Context, arg *types.Args) (rows [][]an
 			for idx := range retP {
 				retP[idx] = 0
 			}
-			return nil, nil, nil, errlist.ErrG.NewError(scanErr, "exec sql scan failed,")
+			return nil, nil, nil, errset.ErrG.NewError(scanErr, "exec sql scan failed,")
 		}
 
 		ret = append(ret, rowD)

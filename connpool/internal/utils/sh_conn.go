@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"io"
 	"oncecall/connpool/types"
-	"oncecall/errlist"
-	"oncecall/errlist/prefix"
+	"oncecall/errset"
+	"oncecall/errset/prefix"
 	"slices"
 	"strconv"
 	"strings"
@@ -119,7 +119,7 @@ func (s ShUtils) ParseResponseFromReader(reader io.Reader, newlineChar, splitCha
 				if dataLen == 0 {
 					dataLen = cnt
 				} else if dataLen != cnt {
-					return nil, nil, errlist.ErrG.NewError(prefix.SentinelCatchError, "not eq, prev[%d] != current[%d]", dataLen, cnt)
+					return nil, nil, errset.ErrG.NewError(prefix.SentinelCatchError, "not eq, prev[%d] != current[%d]", dataLen, cnt)
 				}
 			}
 		}

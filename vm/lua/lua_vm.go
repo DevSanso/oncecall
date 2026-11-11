@@ -1,7 +1,7 @@
 package lua
 
 import (
-	"oncecall/errlist"
+	"oncecall/errset"
 	"oncecall/utils/generic"
 	"oncecall/vm"
 	"reflect"
@@ -51,13 +51,13 @@ func (*luaVM) convertLuaToAsGo(l *lua.State, index int) (output any, err error) 
 			byteData, byteOk := l.ToInteger(-1)
 			l.Pop(1)
 			if !byteOk {
-				err = errlist.ErrG.NewError(nil, "table element type is not number [%s]", lua.TypeNameOf(l, -1))
+				err = errset.ErrG.NewError(nil, "table element type is not number [%s]", lua.TypeNameOf(l, -1))
 				buf = nil
 				break
 			}
 
 			if byteData > 256 || byteData < 0 {
-				err = errlist.ErrG.NewError(nil, "table only support byte array [idx:%d, value:%d]", idx+1, byteData)
+				err = errset.ErrG.NewError(nil, "table only support byte array [idx:%d, value:%d]", idx+1, byteData)
 				buf = nil
 				break
 			}
@@ -76,7 +76,7 @@ func (*luaVM) convertLuaToAsGo(l *lua.State, index int) (output any, err error) 
 		v, _ := l.ToString(index)
 		output = v
 	default:
-		err = errlist.ErrG.NewError(nil, "unsupported type at [%d]", index)
+		err = errset.ErrG.NewError(nil, "unsupported type at [%d]", index)
 	}
 	l.Pop(1)
 	return
@@ -103,7 +103,7 @@ func (*luaVM) pushLuaFromGo(l *lua.State, v any) error {
 			l.RawSetInt(-2, dataIdx+1)
 		}
 	default:
-		return errlist.ErrG.NewError(nil, "luaVm not support type %s", reflect.TypeOf(v).Name())
+		return errset.ErrG.NewError(nil, "luaVm not support type %s", reflect.TypeOf(v).Name())
 	}
 
 	return nil
@@ -115,12 +115,12 @@ func (w *luaVM) registerGetDataLuaFunc(name string) {
 
 		planIdx, exists := l.ToInteger(1)
 		if !exists {
-			lua.Errorf(l, "%s", errlist.ErrG.NewError(nil, "not setting param1"))
+			lua.Errorf(l, "%s", errset.ErrG.NewError(nil, "not setting param1"))
 			return 0
 		}
-		data,inputExists :=  w.input.Load(planIdx)
+		data, inputExists := w.input.Load(planIdx)
 		if !inputExists {
-			lua.Errorf(l, "%s", errlist.ErrG.NewError(nil, "plan data not exists %d", planIdx))
+			lua.Errorf(l, "%s", errset.ErrG.NewError(nil, "plan data not exists %d", planIdx))
 			return 0
 		}
 
@@ -142,7 +142,7 @@ func (w *luaVM) registerGetDataLuaFunc(name string) {
 		}
 
 		if isCastFailFlag {
-			lua.Errorf(l, "%s", errlist.ErrG.NewError(nil, "cast failed type"))
+			lua.Errorf(l, "%s", errset.ErrG.NewError(nil, "cast failed type"))
 			return 0
 		}
 		return 1
@@ -153,7 +153,7 @@ func (w *luaVM) registerGetDataLuaFunc(name string) {
 func (w *luaVM) registerPutDataLuaFunc(name string) {
 	w.raw.PushGoFunction(func(l *lua.State) int {
 		if !l.IsTable(-1) {
-			lua.Errorf(l, "%s", errlist.ErrG.NewError(nil, "row %s is not a table %s", name, w.raw.TypeOf(-1).String()))
+			lua.Errorf(l, "%s", errset.ErrG.NewError(nil, "row %s is not a table %s", name, w.raw.TypeOf(-1).String()))
 			l.Pop(-1)
 			return 0
 		}
@@ -168,7 +168,7 @@ func (w *luaVM) registerPutDataLuaFunc(name string) {
 
 			if !l.IsTable(-1) {
 				l.Pop(-1)
-				err = errlist.ErrG.NewError(nil, "row %d is not a table", rowIdx)
+				err = errset.ErrG.NewError(nil, "row %d is not a table", rowIdx)
 				break
 			}
 
@@ -206,7 +206,7 @@ func (w *luaVM) registerCacheMapLuaUserData(userdataName string) {
 	w.raw.PushGoFunction(func(l *lua.State) int {
 		key, ok := l.ToString(1)
 		if !ok {
-			err := errlist.ErrG.NewError(nil, "can't cast type string")
+			err := errset.ErrG.NewError(nil, "can't cast type string")
 			zap.L().Error(err.Error())
 			return 0
 		}
@@ -226,7 +226,7 @@ func (w *luaVM) registerCacheMapLuaUserData(userdataName string) {
 	w.raw.PushGoFunction(func(l *lua.State) int {
 		key, kOk := l.ToString(1)
 		if !kOk {
-			err := errlist.ErrG.NewError(nil, "can't cast type string [%v]", kOk)
+			err := errset.ErrG.NewError(nil, "can't cast type string [%v]", kOk)
 			zap.L().Error(err.Error())
 			return 0
 		}
@@ -241,7 +241,7 @@ func (w *luaVM) registerCacheMapLuaUserData(userdataName string) {
 	w.raw.PushGoFunction(func(l *lua.State) int {
 		key, kOk := l.ToString(1)
 		if !kOk {
-			err := errlist.ErrG.NewError(nil, "can't cast type string [%v]", kOk)
+			err := errset.ErrG.NewError(nil, "can't cast type string [%v]", kOk)
 			zap.L().Error(err.Error())
 			return 0
 		}
@@ -254,11 +254,9 @@ func (w *luaVM) registerCacheMapLuaUserData(userdataName string) {
 	w.raw.SetGlobal(userdataName)
 }
 
-
 var dummayluaVmInputMap = generic.NewGenericSyncMap[int, [][]any]()
 
-
-func (w *luaVM) Do(cache *generic.SyncMap[string, any], script string,  dataCache *generic.SyncMap[int, [][]any]) ([][]any, error) {
+func (w *luaVM) Do(cache *generic.SyncMap[string, any], script string, dataCache *generic.SyncMap[int, [][]any]) ([][]any, error) {
 	w.input = dataCache
 	if w.input == nil {
 		w.input = dummayluaVmInputMap
@@ -267,7 +265,7 @@ func (w *luaVM) Do(cache *generic.SyncMap[string, any], script string,  dataCach
 	w.tempGPtrMap = cache
 	if err := lua.DoString(w.raw, script); err != nil {
 		w.input = nil
-		return nil, errlist.ErrG.NewError(err, "luaVm Run failed")
+		return nil, errset.ErrG.NewError(err, "luaVm Run failed")
 	}
 	w.input = nil
 

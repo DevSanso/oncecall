@@ -5,7 +5,7 @@ import (
 	"oncecall/connpool/internal/gen"
 	"oncecall/connpool/types"
 	"oncecall/define"
-	"oncecall/errlist"
+	"oncecall/errset"
 	"oncecall/extension/log"
 	"oncecall/extension/metric"
 	"oncecall/extension/pool"
@@ -52,7 +52,7 @@ func NewConnPool(ctx context.Context, ident string, info types.ConnConfig,
 	}
 
 	if gErr != nil {
-		return nil, errlist.ErrG.NewError(gErr, "new conn pool failed ident:%s", ident)
+		return nil, errset.ErrG.NewError(gErr, "new conn pool failed ident:%s", ident)
 	}
 
 	cp := &connPool{
@@ -87,7 +87,7 @@ func (c *connPool) RunExecute(ctx context.Context, arg *types.Args) error {
 	_, err := c.pExtension.Use(func(data types.Conn) (retWrapper, error) {
 		err := data.RunExecute(ctx, arg)
 		if err != nil {
-			return retWrapper{}, errlist.ErrG.NewError(err, "RunExecute Failed : %s", c.ident)
+			return retWrapper{}, errset.ErrG.NewError(err, "RunExecute Failed : %s", c.ident)
 		}
 		return retWrapper{}, nil
 	})
@@ -107,13 +107,13 @@ func (c *connPool) RunQuery(ctx context.Context, arg *types.Args) (rows [][]any,
 	ret, err := c.pExtension.Use(func(data types.Conn) (retWrapper, error) {
 		rows, name, ty, err := data.RunQuery(ctx, arg)
 		if err != nil {
-			return retWrapper{}, errlist.ErrG.NewError(err, "RunExecute Failed : %s", c.ident)
+			return retWrapper{}, errset.ErrG.NewError(err, "RunExecute Failed : %s", c.ident)
 		}
 		return retWrapper{rows, ty, name}, nil
 	})
 
 	if err != nil {
-		return nil, nil,nil, err
+		return nil, nil, nil, err
 	}
 	epel := time.Now().Sub(now).Seconds()
 	c.lExtension.Debug("RunQuery Success: (ident:%s, epel:%f, rows:%d, cols:%d, query:%s, isTran:%v)",

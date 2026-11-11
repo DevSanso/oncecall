@@ -1,4 +1,4 @@
-package errlist
+package errset
 
 import (
 	"errors"
@@ -30,7 +30,7 @@ func (w wrapError) Error() string {
 	for e := w.next; e != nil; e = e.next {
 		if e.realErr != nil {
 			realErrMsg = e.realErr.Error()
-		}  else {
+		} else {
 			realErrMsg = "<empty>"
 		}
 		builder.WriteString(fmt.Sprintf("\t\n(idx:%d,type:%s), (msg:%s,real:%s) [fn:%s,file:%s]", idx, e.typeName, e.message, realErrMsg, e.funcName, e.fileAndLine))

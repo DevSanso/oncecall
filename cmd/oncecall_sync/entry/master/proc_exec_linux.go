@@ -7,14 +7,14 @@ import (
 	"os"
 	"strings"
 
-	"oncecall/errlist"
-	"oncecall/errlist/prefix"
+	"oncecall/errset"
+	"oncecall/errset/prefix"
 )
 
 func (pm *implProcManager) readPPID(pid int) (int, error) {
 	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
 	if err != nil {
-		return -1, errlist.ErrG.NewError(
+		return -1, errset.ErrG.NewError(
 			err,
 			"read proc status failed",
 		)
@@ -24,7 +24,7 @@ func (pm *implProcManager) readPPID(pid int) (int, error) {
 		if strings.HasPrefix(line, "PPid:") {
 			var ppid int
 			if _, err := fmt.Sscanf(line, "PPid:\t%d", &ppid); err != nil {
-				return -1, errlist.ErrG.NewError(
+				return -1, errset.ErrG.NewError(
 					err,
 					"parse PPid failed",
 				)
@@ -33,7 +33,7 @@ func (pm *implProcManager) readPPID(pid int) (int, error) {
 		}
 	}
 
-	return 0, errlist.ErrG.NewError(
+	return 0, errset.ErrG.NewError(
 		prefix.NotExistsError,
 		"PPid not found for PID %d",
 		pid,
@@ -48,7 +48,7 @@ func (pm *implProcManager) existsProcPid(pid int) (bool, error) {
 	}
 
 	if err != nil {
-		return false, errlist.ErrG.NewError(
+		return false, errset.ErrG.NewError(
 			err,
 			"exists proc failed",
 		)

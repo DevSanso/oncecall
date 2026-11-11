@@ -11,8 +11,8 @@ import (
 	"oncecall/cmd/oncecall_sync/state"
 	"oncecall/connpool"
 	"oncecall/connpool/types"
-	"oncecall/errlist"
-	"oncecall/errlist/prefix"
+	"oncecall/errset"
+	"oncecall/errset/prefix"
 	"oncecall/utils"
 	"oncecall/utils/generic"
 	"slices"
@@ -22,13 +22,13 @@ import (
 func syncdResetDbList(s state.SharedState, fetcher syncd.DbFetcher) error {
 	list, listErr := fetcher.DBList(s.GetContext())
 	if listErr != nil {
-		return errlist.ErrG.NewError(listErr, "get failed db list")
+		return errset.ErrG.NewError(listErr, "get failed db list")
 	}
 
 	for ident, info := range list {
 		p, pErr := s.GetConnPool(ident)
 		if pErr != nil {
-			return errlist.ErrG.NewError(pErr, "get failed conn pool")
+			return errset.ErrG.NewError(pErr, "get failed conn pool")
 		}
 
 		cmp := p.GetConfig()
@@ -37,7 +37,7 @@ func syncdResetDbList(s state.SharedState, fetcher syncd.DbFetcher) error {
 		}
 		newP, newErr := connpool.NewConnPool(s.GetContext(), ident, info, metric.Metric, log.Log.Gen, log.Log.Gen, log.Log.Conn)
 		if newErr != nil {
-			return errlist.ErrG.NewError(newErr, "new conn pool failed")
+			return errset.ErrG.NewError(newErr, "new conn pool failed")
 		}
 		s.PushConnPool(ident, newP)
 	}
@@ -79,7 +79,7 @@ func syncdResetScriptPlan(s state.SharedState, private *syncd.PrivateState, ks [
 func syncdResetScript(s state.SharedState, private *syncd.PrivateState, fetcher syncd.DbFetcher) error {
 	scriptList, listErr := fetcher.Script(s.GetContext())
 	if listErr != nil {
-		return errlist.ErrG.NewError(listErr, "get failed script list")
+		return errset.ErrG.NewError(listErr, "get failed script list")
 	}
 
 	var ks []string = slices.Collect(maps.Keys(scriptList))
@@ -130,14 +130,14 @@ func SyncdEntry(ctx context.Context) {
 
 	selfConnInfo, selfErr := fetcher.Self(shared.GetContext())
 	if selfErr != nil {
-		frame := errlist.ErrG.NewError(selfErr, "self get conn info failed %s", config.SyncIdent)
+		frame := errset.ErrG.NewError(selfErr, "self get conn info failed %s", config.SyncIdent)
 		log.Log.Proc.Error("%s", frame.Error())
 		return
 	}
 
 	selfConn, selfConnErr := connpool.NewConnPool(ctx, config.SyncIdent, selfConnInfo, metric.Metric, log.Log.Gen, log.Log.Gen, log.Log.Conn)
 	if selfConnErr != nil {
-		frame := errlist.ErrG.NewError(selfConnErr, "self get conn failed %s", config.SyncIdent)
+		frame := errset.ErrG.NewError(selfConnErr, "self get conn failed %s", config.SyncIdent)
 		log.Log.Proc.Error("%s", frame.Error())
 		return
 	}
@@ -153,7 +153,7 @@ entry:
 		}
 
 		if !proc.IsParentRunning() {
-			frame := errlist.ErrG.NewError(prefix.ClosedError, "master process is down")
+			frame := errset.ErrG.NewError(prefix.ClosedError, "master process is down")
 			log.Log.Proc.Error("%s", frame.Error())
 			break entry
 		}

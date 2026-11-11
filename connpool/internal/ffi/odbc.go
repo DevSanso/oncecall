@@ -39,7 +39,7 @@ import (
 	"unsafe"
 
 	"oncecall/connpool/types"
-	"oncecall/errlist"
+	"oncecall/errset"
 )
 
 type ODBCFfi struct {
@@ -58,7 +58,7 @@ func (o *ODBCFfi) ok(rc C.SQLRETURN) bool {
 }
 
 func (o *ODBCFfi) newError(err error, format string, args ...any) error {
-	return errlist.ErrG.NewError(err, format, args...)
+	return errset.ErrG.NewError(err, format, args...)
 }
 
 func (o *ODBCFfi) diag(ht C.SQLSMALLINT, h C.SQLHANDLE, op string) error {
@@ -419,7 +419,7 @@ func (o *ODBCFfi) Query(
 		}
 
 		row := make([]any, len(names))
-		
+
 		for i := range names {
 			v, t, err := o.readColumn(stmt, i+1)
 			if err != nil {

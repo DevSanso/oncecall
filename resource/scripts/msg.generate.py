@@ -133,6 +133,7 @@ def generate_message(base, entries):
     for entry in entries:
         lines.append(
             f"\t\t{entry["name"]} : {{"
+            f'Code: {entry["code"]}, '
             f'Level: {entry["level"]}, '
             f'Name: {json.dumps(entry["name"])}, '
             f'Text: {json.dumps(entry["message"], ensure_ascii=False)}'
